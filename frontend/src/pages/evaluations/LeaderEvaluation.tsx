@@ -8,7 +8,7 @@ import { pdiService } from '../../services/pdiService';
 import LeaderEvaluationHeader from '../../components/LeaderEvaluationHeader';
 import EvaluationSection from '../../components/EvaluationSection';
 import PotentialAndPDI from '../../components/PotentialAndPDI';
-import { AlertCircle, CheckCircle, Save, ArrowRight, BookOpen, Target, Award, Info } from 'lucide-react';
+import { AlertCircle, CheckCircle, ArrowRight, BookOpen, Target, Award, Info } from 'lucide-react';
 import Button from '../../components/Button';
 import { motion } from 'framer-motion';
 
@@ -431,82 +431,6 @@ const LeaderEvaluation = () => {
     }
   };
 
-  const handleSaveDraft = async () => {
-    if (!currentCycle || !selectedEmployeeId || !profile?.id) {
-      toast.error('Dados incompletos para salvar');
-      return;
-    }
-
-    const competencies = sections.flatMap(section =>
-      section.items
-        .filter(item => item.score !== undefined)
-        .map(item => {
-          // Determinar a categoria baseada no ID da seção
-          let category: 'technical' | 'behavioral' | 'deliveries';
-          if (section.id === 'technical') {
-            category = 'technical';
-          } else if (section.id === 'behavioral') {
-            category = 'behavioral';
-          } else {
-            category = 'deliveries';
-          }
-
-          return {
-            id: item.id,
-            criterion_name: item.name,
-            criterion_description: item.description,
-            category: category,
-            score: item.score!,
-            weight: 1.0
-          };
-        })
-    );
-
-    const totalPdiItems = pdiData.curtosPrazos.length + pdiData.mediosPrazos.length + pdiData.longosPrazos.length;
-    if (competencies.length === 0 && totalPdiItems === 0) {
-      toast.error('Avalie pelo menos uma competência ou adicione um item ao PDI antes de salvar');
-      return;
-    }
-
-    const potentialScore = potentialItems.some(item => item.score !== undefined)
-      ? calculatePotentialScores().final
-      : undefined;
-
-    setIsSaving(true);
-    try {
-      // Salvar avaliação como rascunho
-      await saveLeaderEvaluation({
-        cycleId: currentCycle.id,
-        employeeId: selectedEmployeeId,
-        evaluatorId: profile.id,
-        competencies,
-        potentialScore: potentialScore || 0,
-        feedback: {
-          strengths_internal: '',
-          improvements: '',
-          observations: 'Avaliação salva como rascunho'
-        }
-      });
-
-      // Se houver itens no PDI, salvar também
-      if (totalPdiItems > 0) {
-        const pdiParams = pdiService.transformPDIDataForAPI(
-          pdiData,
-          currentCycle.id,
-          undefined // Sem ID da avaliação por enquanto
-        );
-
-        await pdiService.savePDI(pdiParams);
-      }
-
-      toast.success('Rascunho salvo com sucesso');
-    } catch (error) {
-      console.error('Erro ao salvar avaliação:', error);
-      toast.error('Erro ao salvar avaliação');
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   const isCycleInValidPeriod = (): boolean => { // Explicitly define return type
     if (!currentCycle) return false;
@@ -625,9 +549,6 @@ const LeaderEvaluation = () => {
                   )}
                 </div>
                 <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
-                  <Button variant="outline" onClick={handleSaveDraft} icon={<Save size={18} />} size="lg" disabled={isSaving || loading}>
-                    {isSaving ? 'Salvando...' : 'Salvar Rascunho'}
-                  </Button>
                   <Button variant="primary" onClick={handleNextStep} icon={<ArrowRight size={18} />} size="lg" disabled={!canProceedToStep2()}>
                     Próxima Etapa
                   </Button>
@@ -645,7 +566,6 @@ const LeaderEvaluation = () => {
               setPdiData={setPdiData}
               handlePreviousStep={handlePreviousStep}
               handleNextStep={handleNextStep}
-              handleSave={handleSaveDraft}
               handleSubmit={handleSubmit}
               isSaving={isSaving}
               loading={loading}
@@ -663,7 +583,6 @@ const LeaderEvaluation = () => {
               setPdiData={setPdiData}
               handlePreviousStep={handlePreviousStep}
               handleNextStep={handleNextStep}
-              handleSave={handleSaveDraft}
               handleSubmit={handleSubmit}
               isSaving={isSaving}
               loading={loading}
