@@ -36,7 +36,8 @@ interface PdiData {
 }
 
 const PdiManagement: React.FC = () => {
-  const { employees, loadPDI, savePDI } = useEvaluation();
+  const { user } = useAuth();
+  const { employees, subordinates, loadSubordinates, loadPDI, savePDI } = useEvaluation();
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
   const [pdiData, setPdiData] = useState<PdiData>({
     colaboradorId: '',
@@ -50,6 +51,37 @@ const PdiManagement: React.FC = () => {
   });
   const [loadingPDI, setLoadingPDI] = useState<boolean>(false);
   const [isSavingPDI, setIsSavingPDI] = useState<boolean>(false);
+  const [availableEmployees, setAvailableEmployees] = useState<UserWithDetails[]>([]);
+
+  // Load subordinates and determine which employees to show
+  useEffect(() => {
+    const loadAvailableEmployees = async () => {
+      // Se for admin ou diretor, pode ver todos (exceto admin e diretores)
+      if (user?.is_admin || user?.is_director) {
+        const filteredEmployees = employees.filter(
+          employee => !employee.is_admin && !employee.is_director
+        );
+        setAvailableEmployees(filteredEmployees);
+      }
+      // Se for líder, pode ver apenas seus subordinados diretos
+      else if (user?.is_leader) {
+        await loadSubordinates();
+      }
+      // Se não for nenhum dos acima, não pode ver ninguém
+      else {
+        setAvailableEmployees([]);
+      }
+    };
+
+    loadAvailableEmployees();
+  }, [user, employees, loadSubordinates]);
+
+  // Update available employees when subordinates change (for leaders)
+  useEffect(() => {
+    if (user?.is_leader && !user?.is_admin && !user?.is_director) {
+      setAvailableEmployees(subordinates);
+    }
+  }, [subordinates, user]);
 
   // Load PDI when selectedEmployeeId changes
   useEffect(() => {
@@ -167,7 +199,7 @@ const PdiManagement: React.FC = () => {
     await handleSavePDI();
   };
 
-  const selectedEmployee = employees.find(emp => emp.id === selectedEmployeeId);
+  const selectedEmployee = availableEmployees.find(emp => emp.id === selectedEmployeeId);
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -203,9 +235,7 @@ const PdiManagement: React.FC = () => {
                 disabled={loadingPDI}
               >
                 <option value="">Escolha um colaborador...</option>
-                {employees
-                  .filter(employee => !employee.is_admin && !employee.is_director)
-                  .map((employee) => (
+                {availableEmployees.map((employee) => (
                     <option key={employee.id} value={employee.id}>
                       {employee.name} - {employee.position}
                     </option>
@@ -300,12 +330,27 @@ const PdiManagement: React.FC = () => {
             <div className="mx-auto flex items-center justify-center h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-gradient-to-br from-stone-100 to-gray-100 dark:from-stone-900/20 dark:to-gray-900/20 mb-6">
               <Users className="h-8 w-8 sm:h-10 sm:w-10 text-stone-700 dark:text-stone-500" />
             </div>
-            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-              Selecione um colaborador
-            </h3>
-            <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">
-              Escolha um colaborador no menu acima para visualizar ou editar o PDI.
-            </p>
+            {availableEmployees.length === 0 ? (
+              <>
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                  Nenhum colaborador disponível
+                </h3>
+                <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">
+                  {user?.is_leader
+                    ? 'Você não possui subordinados diretos para gerenciar PDIs.'
+                    : 'Você não tem permissão para gerenciar PDIs de outros colaboradores.'}
+                </p>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                  Selecione um colaborador
+                </h3>
+                <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">
+                  Escolha um colaborador no menu acima para visualizar ou editar o PDI.
+                </p>
+              </>
+            )}
           </div>
         </motion.div>
       )}
