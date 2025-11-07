@@ -219,6 +219,15 @@ const NineBoxMatrix = () => {
   };
 
   /**
+   * Retorna o nome do quadrante no formato "A1", "B2", "C3", etc.
+   */
+  const getQuadrantName = (performance: number, potential: number): string => {
+    const quadrant = getQuadrant(performance, potential);
+    const colLetter = ['A', 'B', 'C'][quadrant.col - 1];
+    return `${colLetter}${quadrant.row}`;
+  };
+
+  /**
    * Calcula a posição do ponto dentro da matriz
    * Garante que o ponto fique sempre dentro dos limites do quadrante correto
    */
@@ -538,6 +547,20 @@ const NineBoxMatrix = () => {
                       style={{ width: `${(selectedEvaluation.potential_score / 4) * 100}%` }}
                     />
                   </div>
+                </div>
+
+                {/* Card de Quadrante */}
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-900/20 rounded-lg sm:rounded-xl p-4 border border-blue-200 dark:border-blue-700">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-naue-black dark:text-gray-300 font-medium">Quadrante</p>
+                    <Grid3x3 className="h-4 w-4 text-blue-800 dark:text-blue-700" />
+                  </div>
+                  <p className="text-2xl sm:text-3xl font-bold text-blue-800 dark:text-blue-700">
+                    {getQuadrantName(selectedEvaluation.consensus_score, selectedEvaluation.potential_score)}
+                  </p>
+                  <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
+                    {selectedEvaluation.consensus_score < 2 ? 'Baixo' : selectedEvaluation.consensus_score < 3 ? 'Médio' : 'Alto'} × {selectedEvaluation.potential_score < 2 ? 'Baixo' : selectedEvaluation.potential_score < 3 ? 'Médio' : 'Alto'}
+                  </p>
                 </div>
               </div>
             </div>
