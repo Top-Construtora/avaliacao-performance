@@ -219,12 +219,43 @@ const NineBoxMatrix = () => {
   };
 
   /**
-   * Retorna o nome do quadrante no formato "A1", "B2", "C3", etc.
+   * Retorna o número do quadrante (1-9) conforme a metodologia Nine Box
+   * Box 1: Baixo Perf + Baixo Pot
+   * Box 2: Baixo Perf + Médio Pot
+   * Box 3: Baixo Perf + Alto Pot
+   * Box 4: Médio Perf + Baixo Pot
+   * Box 5: Médio Perf + Médio Pot
+   * Box 6: Médio Perf + Alto Pot
+   * Box 7: Alto Perf + Baixo Pot
+   * Box 8: Alto Perf + Médio Pot
+   * Box 9: Alto Perf + Alto Pot
    */
   const getQuadrantName = (performance: number, potential: number): string => {
     const quadrant = getQuadrant(performance, potential);
-    const colLetter = ['A', 'B', 'C'][quadrant.col - 1];
-    return `${colLetter}${quadrant.row}`;
+    // Calcula o número do box baseado na posição
+    // row e col vão de 1 a 3
+    // Fórmula: (col - 1) * 3 + row
+    // Exemplo: col=2, row=3 => (2-1)*3 + 3 = 6 (Box 6)
+    const boxNumber = (quadrant.col - 1) * 3 + quadrant.row;
+    return boxNumber.toString();
+  };
+
+  /**
+   * Retorna o nome descritivo do box conforme o guia Nine Box
+   */
+  const getBoxDescriptiveName = (boxNumber: string): string => {
+    const boxNames: Record<string, string> = {
+      '1': 'Insuficiente',
+      '2': 'Questionável',
+      '3': 'Enigma',
+      '4': 'Eficaz',
+      '5': 'Mantenedor',
+      '6': 'Crescimento',
+      '7': 'Comprometimento',
+      '8': 'Alto Impacto',
+      '9': 'Futuro Líder'
+    };
+    return boxNames[boxNumber] || '';
   };
 
   /**
@@ -555,11 +586,16 @@ const NineBoxMatrix = () => {
                     <p className="text-sm font-medium text-naue-black dark:text-gray-300 font-medium">Quadrante</p>
                     <Grid3x3 className="h-4 w-4 text-blue-800 dark:text-blue-700" />
                   </div>
-                  <p className="text-2xl sm:text-3xl font-bold text-blue-800 dark:text-blue-700">
-                    {getQuadrantName(selectedEvaluation.consensus_score, selectedEvaluation.potential_score)}
-                  </p>
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-2xl sm:text-3xl font-bold text-blue-800 dark:text-blue-700">
+                      Box {getQuadrantName(selectedEvaluation.consensus_score, selectedEvaluation.potential_score)}
+                    </p>
+                    <p className="text-sm font-semibold text-blue-700 dark:text-blue-400">
+                      {getBoxDescriptiveName(getQuadrantName(selectedEvaluation.consensus_score, selectedEvaluation.potential_score))}
+                    </p>
+                  </div>
                   <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
-                    {selectedEvaluation.consensus_score < 2 ? 'Baixo' : selectedEvaluation.consensus_score < 3 ? 'Médio' : 'Alto'} × {selectedEvaluation.potential_score < 2 ? 'Baixo' : selectedEvaluation.potential_score < 3 ? 'Médio' : 'Alto'}
+                    Performance: {selectedEvaluation.consensus_score < 2 ? 'Baixo' : selectedEvaluation.consensus_score < 3 ? 'Médio' : 'Alto'} | Potencial: {selectedEvaluation.potential_score < 2 ? 'Baixo' : selectedEvaluation.potential_score < 3 ? 'Médio' : 'Alto'}
                   </p>
                 </div>
               </div>
