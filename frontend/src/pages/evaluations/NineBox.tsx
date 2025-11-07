@@ -183,14 +183,6 @@ const NineBoxMatrix = () => {
   };
 
   /**
-   * Converte nota de 1-4 para posição de 0-3 no grid
-   */
-  const convertScoreToGridPosition = (score: number): number => {
-    const clampedScore = Math.max(1, Math.min(4, score));
-    return clampedScore - 1;
-  };
-
-  /**
    * Obtém o quadrante baseado nas notas (retorna índices de 1-3)
    */
   const getQuadrant = (performance: number, potential: number): { row: number; col: number } => {
@@ -228,16 +220,59 @@ const NineBoxMatrix = () => {
 
   /**
    * Calcula a posição do ponto dentro da matriz
+   * Garante que o ponto fique sempre dentro dos limites do quadrante correto
    */
   const getPointPosition = (performance: number, potential: number) => {
-    const x = convertScoreToGridPosition(performance);
-    const y = convertScoreToGridPosition(potential);
-    
-    // Converte para porcentagem (0-100%)
-    const xPercent = (x / 3) * 100;
-    // Inverte o Y porque o grid visual cresce de baixo para cima
-    const yPercent = (1 - y / 3) * 100;
-    
+    // Limita as notas entre 1 e 4
+    const clampedPerf = Math.max(1, Math.min(4, performance));
+    const clampedPot = Math.max(1, Math.min(4, potential));
+
+    // Determina o quadrante
+    const quadrant = getQuadrant(clampedPerf, clampedPot);
+
+    // Padding interno para o ponto não ultrapassar as bordas (15% de cada lado do quadrante)
+    const PADDING = 0.15;
+
+    // Calcula a posição relativa dentro do quadrante (0 a 1)
+    let perfRelative: number;
+    let potRelative: number;
+
+    // Performance (eixo X / coluna)
+    if (quadrant.col === 1) {
+      // Quadrante 1: notas 1.0-1.999
+      perfRelative = (clampedPerf - 1.0) / 1.0; // 0 a 1
+    } else if (quadrant.col === 2) {
+      // Quadrante 2: notas 2.0-2.999
+      perfRelative = (clampedPerf - 2.0) / 1.0; // 0 a 1
+    } else {
+      // Quadrante 3: notas 3.0-4.0
+      perfRelative = (clampedPerf - 3.0) / 1.0; // 0 a 1
+    }
+
+    // Potencial (eixo Y / linha)
+    if (quadrant.row === 1) {
+      // Quadrante 1: notas 1.0-1.999
+      potRelative = (clampedPot - 1.0) / 1.0; // 0 a 1
+    } else if (quadrant.row === 2) {
+      // Quadrante 2: notas 2.0-2.999
+      potRelative = (clampedPot - 2.0) / 1.0; // 0 a 1
+    } else {
+      // Quadrante 3: notas 3.0-4.0
+      potRelative = (clampedPot - 3.0) / 1.0; // 0 a 1
+    }
+
+    // Aplica padding para manter o ponto dentro do quadrante
+    perfRelative = perfRelative * (1 - 2 * PADDING) + PADDING;
+    potRelative = potRelative * (1 - 2 * PADDING) + PADDING;
+
+    // Cada quadrante ocupa 33.33% da matriz
+    const quadrantSize = 100 / 3;
+
+    // Calcula a posição final em porcentagem (0-100%)
+    const xPercent = (quadrant.col - 1) * quadrantSize + (perfRelative * quadrantSize);
+    // Inverte o Y porque o grid visual cresce de baixo para cima (linha 3 = topo)
+    const yPercent = (3 - quadrant.row) * quadrantSize + ((1 - potRelative) * quadrantSize);
+
     return { x: xPercent, y: yPercent };
   };
 
