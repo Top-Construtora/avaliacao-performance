@@ -160,9 +160,32 @@ export const api = {
   },
 
   delete(endpoint: string, customHeaders?: HeadersInit) {
-    return this.request(endpoint, { 
+    return this.request(endpoint, {
       method: 'DELETE',
       headers: customHeaders
     });
   },
+
+  async downloadFile(endpoint: string): Promise<Blob> {
+    const token = sessionStorage.getItem('access_token');
+
+    const headers: HeadersInit = {};
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${this.baseURL}${endpoint}`, {
+      method: 'GET',
+      credentials: 'include',
+      mode: 'cors',
+      headers
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.blob();
+  }
 };
