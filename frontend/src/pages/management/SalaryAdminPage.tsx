@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import {
   Building, GitBranch, Plus, ChevronRight,
-  Trash2, Save, X, Settings, BarChart3, Download, FileText, FileSpreadsheet
+  Trash2, Save, X, Settings, Download, FileText, FileSpreadsheet
 } from 'lucide-react';
 
 // Importações corretas dos serviços
@@ -231,10 +231,6 @@ const SalaryAdminPage = () => {
                 </p>
               </div>
               <div className="flex gap-3">
-                <Button variant="secondary" onClick={() => navigate('/salary-management')}>
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  Visão Geral
-                </Button>
                 <Button onClick={() => setShowCreateTrackModal(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Criar Nova Trilha
