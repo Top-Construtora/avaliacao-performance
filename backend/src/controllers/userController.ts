@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { userService } from '../services/userService';
+import { AuthRequest } from '../middleware/auth';
 
 export const userController = {
   async getUsers(req: Request, res: Response, next: NextFunction) {
@@ -71,11 +72,11 @@ export const userController = {
     }
   },
 
-  async updateUser(req: Request, res: Response, next: NextFunction) {
+  async updateUser(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const user = await userService.updateUser(id, req.body);
-      
+      const user = await userService.updateUser(id, req.body, req.user);
+
       res.json({
         success: true,
         data: user

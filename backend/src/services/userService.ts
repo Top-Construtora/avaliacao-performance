@@ -67,10 +67,51 @@ export const userService = {
     return data;
   },
 
-  async updateUser(id: string, updates: Partial<User>) {
-    // Preparar atualizações incluindo novos campos
+  async updateUser(id: string, updates: Partial<User>, requestingUser?: any) {
+    // Campos sensíveis que só admins podem modificar
+    const PROTECTED_FIELDS = ['is_admin', 'is_director', 'is_leader', 'id', 'created_at'];
+
+    // Campos que usuários normais podem atualizar em seus próprios perfis
+    const ALLOWED_USER_FIELDS = [
+      'name', 'phone', 'birth_date', 'profile_image', 'position',
+      'contract_type', 'admission_date', 'position_start_date', 'intern_level'
+    ];
+
+    // Verificar se há tentativa de modificar campos protegidos
+    const attemptingProtectedUpdate = PROTECTED_FIELDS.some(field =>
+      updates.hasOwnProperty(field)
+    );
+
+    if (attemptingProtectedUpdate) {
+      // Se não tem usuário requisitante ou não é admin, bloquear
+      if (!requestingUser || !requestingUser.is_admin) {
+        throw new ApiError(
+          403,
+          'Apenas administradores podem modificar roles e campos protegidos'
+        );
+      }
+    }
+
+    // Se não é admin, filtrar campos permitidos
+    let filteredUpdates: any = {};
+
+    if (requestingUser && requestingUser.is_admin) {
+      // Admin pode atualizar qualquer campo (exceto id e created_at)
+      filteredUpdates = { ...updates };
+      delete filteredUpdates.id;
+      delete filteredUpdates.created_at;
+    } else {
+      // Usuário normal: apenas campos da whitelist
+      Object.keys(updates).forEach(key => {
+        if (ALLOWED_USER_FIELDS.includes(key)) {
+          filteredUpdates[key] = (updates as any)[key];
+        }
+      });
+    }
+
+    // Preparar atualizações
     const updateData: any = {
-      ...updates,
+      ...filteredUpdates,
       updated_at: new Date().toISOString()
     };
 

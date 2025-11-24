@@ -5,6 +5,7 @@ export interface User {
   email: string;
   name: string;
   position: string;
+  is_admin: boolean;
   is_leader: boolean;
   is_director: boolean;
   active: boolean;
@@ -326,6 +327,7 @@ export interface UsersRow {
   email: string;
   name: string;
   position: string;
+  is_admin: boolean;
   is_leader: boolean;
   is_director: boolean;
   phone: string | null;
@@ -353,6 +355,7 @@ export interface UsersInsert {
   email: string;
   name: string;
   position: string;
+  is_admin?: boolean;
   is_leader?: boolean;
   is_director?: boolean;
   phone?: string | null;
@@ -379,6 +382,7 @@ export interface UsersUpdate {
   email?: string;
   name?: string;
   position?: string;
+  is_admin?: boolean;
   is_leader?: boolean;
   is_director?: boolean;
   phone?: string | null;
@@ -412,6 +416,7 @@ export interface CreateUserRequest {
   password: string;
   name: string;
   position: string;
+  is_admin?: boolean;
   is_leader?: boolean;
   is_director?: boolean;
   phone?: string;
@@ -430,6 +435,7 @@ export interface CreateUserRequest {
 export interface UpdateUserRequest {
   name?: string;
   position?: string;
+  is_admin?: boolean;
   is_leader?: boolean;
   is_director?: boolean;
   phone?: string;
