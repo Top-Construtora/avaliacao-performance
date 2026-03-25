@@ -356,7 +356,7 @@ const RegisterUser = () => {
       errors.reportsTo = 'Selecione um líder';
     }
     if (formData.profileType === 'leader' && !formData.reportsTo) {
-      errors.reportsTo = 'Selecione um diretor';
+      errors.reportsTo = 'Selecione um líder ou diretor';
     }
     
     setFormErrors(errors);
@@ -1040,7 +1040,7 @@ const RegisterUser = () => {
                   onChange={(e) => setFormData({ ...formData, reportsTo: e.target.value })}
                 >
                   <option value="">
-                    {formData.profileType === 'regular' ? 'Selecione um líder' : 'Selecione um diretor'}
+                    {formData.profileType === 'regular' ? 'Selecione um líder' : 'Selecione um líder ou diretor'}
                   </option>
                   {users
                     .filter(u => {
@@ -1050,7 +1050,7 @@ const RegisterUser = () => {
                       if (formData.profileType === 'regular') {
                         return u.is_leader || u.is_director;
                       }
-                      return u.is_director;
+                      return u.is_leader || u.is_director;
                     })
                     .map(superior => (
                       <option key={superior.id} value={superior.id}>
@@ -1069,7 +1069,7 @@ const RegisterUser = () => {
               )}
               {formData.profileType === 'leader' && (
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                  Líderes devem reportar para um diretor
+                  Líderes podem reportar para um líder ou diretor
                 </p>
               )}
             </div>
