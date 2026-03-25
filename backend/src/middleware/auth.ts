@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '../types/supabase';
+import { supabaseAdmin } from '../config/supabase';
 
 export interface AuthRequest extends Request {
   user?: Database['public']['Tables']['users']['Row'];
@@ -13,19 +14,15 @@ export const authenticateToken = async (
   next: NextFunction
 ) => {
   try {
-    console.log('🔐 Auth middleware - Iniciando autenticação');
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
-      console.log('❌ Auth middleware - Token não fornecido');
       return res.status(401).json({
         success: false,
         error: 'Token de autenticação não fornecido'
       });
     }
-
-    console.log('✅ Auth middleware - Token encontrado');
 
     // Criar cliente Supabase com o token do usuário
     const supabase = createClient<Database>(
@@ -44,47 +41,55 @@ export const authenticateToken = async (
       }
     );
 
-    console.log('📡 Auth middleware - Verificando token com Supabase');
     // Verificar o token e obter o usuário
     const { data: { user }, error } = await supabase.auth.getUser();
 
     if (error || !user) {
-      console.log('❌ Auth middleware - Token inválido:', error?.message);
+      console.error('❌ Auth: Token inválido -', error?.message);
+
+      const errorMessage = error?.message?.toLowerCase().includes('expired') ||
+                           error?.message?.toLowerCase().includes('invalid')
+        ? 'Token expirado ou inválido. Por favor, faça login novamente.'
+        : 'Token inválido ou expirado';
+
       return res.status(401).json({
         success: false,
-        error: 'Token inválido ou expirado'
+        error: errorMessage,
+        code: error?.code
       });
     }
 
-    console.log('✅ Auth middleware - Usuário autenticado:', user.id);
-    console.log('📡 Auth middleware - Buscando dados do usuário na tabela');
-
-    // Buscar dados completos do usuário
-    const { data: userData, error: userError } = await supabase
+    // Buscar dados completos do usuário usando supabaseAdmin (bypassa RLS)
+    const { data: userData, error: userError } = await supabaseAdmin
       .from('users')
       .select('*')
       .eq('id', user.id)
       .single();
 
     if (userError || !userData) {
-      console.log('❌ Auth middleware - Usuário não encontrado:', userError?.message);
+      console.error('❌ Auth: Usuário não encontrado -', user.id);
       return res.status(401).json({
         success: false,
         error: 'Usuário não encontrado'
       });
     }
 
-    console.log('✅ Auth middleware - Dados do usuário encontrados');
+    // Verificar se o usuário está ativo
+    if (!userData.active) {
+      console.warn('⚠️ Auth: Usuário inativo -', userData.email);
+      return res.status(403).json({
+        success: false,
+        error: 'Usuário inativo'
+      });
+    }
 
-    // Adicionar user e supabase ao request
+    // Adicionar user e supabaseAdmin ao request (para bypassar RLS)
     req.user = userData;
-    req.supabase = supabase;
+    req.supabase = supabaseAdmin;
 
-    console.log('✅ Auth middleware - Autenticação concluída com sucesso');
     next();
   } catch (error: any) {
-    console.error('❌ Auth middleware - Erro crítico:', error);
-    console.error('Stack:', error.stack);
+    console.error('❌ Auth: Erro crítico -', error.message);
     res.status(500).json({
       success: false,
       error: 'Erro interno no servidor'

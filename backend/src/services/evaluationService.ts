@@ -7,6 +7,7 @@ import type {
   CycleDashboard,
   NineBoxData,
 } from '../types';
+import { filterRestrictedUsers, filterRestrictedEmployeeRelations, filterEvaluationRestrictedUsers, filterEvaluationRestrictedEmployeeRelations } from '../utils/userFilterUtils';
 
 export const evaluationService = {
   // ====================================
@@ -139,88 +140,124 @@ export const evaluationService = {
   // ====================================
   
   // Dashboard do ciclo
-  async getCycleDashboard(supabase: any, cycleId: string) {
+  async getCycleDashboard(supabase: any, cycleId: string, currentUserEmail?: string) {
     try {
-      // Buscar TODOS os usuários ativos (exceto admins)
-      const { data: allUsers, error: usersError } = await supabase
-        .from('users')
-        .select(`
-          id,
-          name,
-          email,
-          position,
-          is_director,
-          department_id,
-          departments:department_id(id, name)
-        `)
-        .eq('active', true)
-        .eq('is_admin', false);
+      // OTIMIZAÇÃO: Executar todas as 5 queries em PARALELO com Promise.all
+      const [usersResult, selfEvalsResult, leaderEvalsResult, consensusEvalsResult, teamMembersResult] = await Promise.all([
+        // Query 1: Buscar TODOS os usuários ativos (exceto admins)
+        supabase
+          .from('users')
+          .select(`
+            id,
+            name,
+            email,
+            position,
+            is_director,
+            department_id,
+            departments:department_id(id, name)
+          `)
+          .eq('active', true)
+          .eq('is_admin', false),
 
-      if (usersError) {
-        console.error('Error fetching users:', usersError);
-      }
+        // Query 2: Buscar autoavaliações
+        supabase
+          .from('self_evaluations')
+          .select(`
+            *,
+            employee:users!employee_id(id, name, email, position)
+          `)
+          .eq('cycle_id', cycleId),
 
-      // Buscar autoavaliações
-      const { data: selfEvals, error: selfError } = await supabase
-        .from('self_evaluations')
-        .select(`
-          *,
-          employee:users!employee_id(id, name, email, position)
-        `)
-        .eq('cycle_id', cycleId);
+        // Query 3: Buscar avaliações de líder
+        supabase
+          .from('leader_evaluations')
+          .select(`
+            *,
+            employee:users!employee_id(id, name, email, position),
+            evaluator:users!evaluator_id(id, name)
+          `)
+          .eq('cycle_id', cycleId),
 
-      if (selfError) {
-        console.error('Error fetching self evaluations:', selfError);
-      }
+        // Query 4: Buscar avaliações de consenso
+        supabase
+          .from('consensus_evaluations')
+          .select(`
+            *,
+            employee:users!employee_id(id, name, email, position)
+          `)
+          .eq('cycle_id', cycleId),
 
-      // Buscar avaliações de líder
-      const { data: leaderEvals, error: leaderError } = await supabase
-        .from('leader_evaluations')
-        .select(`
-          *,
-          employee:users!employee_id(id, name, email, position),
-          evaluator:users!evaluator_id(id, name)
-        `)
-        .eq('cycle_id', cycleId);
+        // Query 5: Buscar membros de times com departamento
+        supabase
+          .from('team_members')
+          .select(`
+            user_id,
+            teams!inner(
+              id,
+              name,
+              department_id,
+              departments!inner(id, name)
+            )
+          `)
+      ]);
 
-      if (leaderError) {
-        console.error('Error fetching leader evaluations:', leaderError);
-      }
+      // Extrair dados e verificar erros
+      const { data: allUsers, error: usersError } = usersResult;
+      const { data: selfEvals, error: selfError } = selfEvalsResult;
+      const { data: leaderEvals, error: leaderError } = leaderEvalsResult;
+      const { data: consensusEvals, error: consensusError } = consensusEvalsResult;
+      const { data: teamMembers, error: teamMembersError } = teamMembersResult;
 
-      // Buscar avaliações de consenso
-      const { data: consensusEvals, error: consensusError } = await supabase
-        .from('consensus_evaluations')
-        .select(`
-          *,
-          employee:users!employee_id(id, name, email, position)
-        `)
-        .eq('cycle_id', cycleId);
+      if (usersError) console.error('Error fetching users:', usersError);
+      if (selfError) console.error('Error fetching self evaluations:', selfError);
+      if (leaderError) console.error('Error fetching leader evaluations:', leaderError);
+      if (consensusError) console.error('Error fetching consensus evaluations:', consensusError);
+      if (teamMembersError) console.error('Error fetching team members:', teamMembersError);
 
-      if (consensusError) {
-        console.error('Error fetching consensus evaluations:', consensusError);
-      }
+      // Criar mapas de usuário -> departamento e usuário -> time via team_members
+      const userDepartmentMap = new Map<string, string>();
+      const userTeamMap = new Map<string, string>();
+      teamMembers?.forEach((tm: any) => {
+        if (tm.teams?.departments?.name && !userDepartmentMap.has(tm.user_id)) {
+          userDepartmentMap.set(tm.user_id, tm.teams.departments.name);
+        }
+        if (tm.teams?.name && !userTeamMap.has(tm.user_id)) {
+          userTeamMap.set(tm.user_id, tm.teams.name);
+        }
+      });
+
+      // Aplicar filtro de usuários restritos (geral)
+      let filteredUsers = filterRestrictedUsers(currentUserEmail, allUsers || []);
+      // Aplicar filtro específico de avaliações (Comitê/Consenso)
+      filteredUsers = filterEvaluationRestrictedUsers(currentUserEmail, filteredUsers);
+
+      // Aplicar filtro nas avaliações também
+      let filteredSelfEvals = filterRestrictedEmployeeRelations(currentUserEmail, selfEvals || []);
+      filteredSelfEvals = filterEvaluationRestrictedEmployeeRelations(currentUserEmail, filteredSelfEvals);
+      let filteredLeaderEvals = filterRestrictedEmployeeRelations(currentUserEmail, leaderEvals || []);
+      filteredLeaderEvals = filterEvaluationRestrictedEmployeeRelations(currentUserEmail, filteredLeaderEvals);
+      let filteredConsensusEvals = filterRestrictedEmployeeRelations(currentUserEmail, consensusEvals || []);
+      filteredConsensusEvals = filterEvaluationRestrictedEmployeeRelations(currentUserEmail, filteredConsensusEvals);
 
       // Combinar dados para o dashboard
       const employeeMap = new Map<string, CycleDashboard>();
 
-      // Primeiro, adicionar TODOS os usuários ativos (exceto admins) ao mapa
-      allUsers?.forEach((user: any) => {
+      // Primeiro, adicionar TODOS os usuários ativos filtrados (exceto admins) ao mapa
+      filteredUsers?.forEach((user: any) => {
         // Diretores não têm autoavaliação nem consenso, apenas avaliação de líder
         const isDirector = user.is_director === true;
 
-        if (isDirector) {
-          console.log(`🔍 Director detected: ${user.name} (${user.id}) - Setting self and consensus to 'n/a'`);
-        }
-
-        // Tentar obter o nome do departamento do relacionamento ou usar department_id
-        const departmentName = user.departments?.name || user.department_id || '';
+        // Tentar obter o nome do departamento: 1) via teams, 2) via department_id direto
+        const departmentName = userDepartmentMap.get(user.id) || user.departments?.name || '';
+        const teamName = userTeamMap.get(user.id) || '';
 
         employeeMap.set(user.id, {
           employee_id: user.id,
           employee_name: user.name || '',
           employee_email: user.email || '',
           employee_position: user.position || '',
-          department_name: departmentName, // Adicionar nome do departamento
+          department_name: departmentName,
+          team_name: teamName,
           self_evaluation_id: null,
           self_evaluation_status: isDirector ? 'n/a' : 'pending',
           self_evaluation_score: null,
@@ -237,7 +274,7 @@ export const evaluationService = {
       });
 
       // Processar autoavaliações (apenas atualizar os dados existentes)
-      selfEvals?.forEach((se: any) => {
+      filteredSelfEvals?.forEach((se: any) => {
         const empId = se.employee_id;
         if (employeeMap.has(empId)) {
           const emp = employeeMap.get(empId)!;
@@ -248,7 +285,7 @@ export const evaluationService = {
       });
 
       // Processar avaliações de líder (apenas atualizar os dados existentes)
-      leaderEvals?.forEach((le: any) => {
+      filteredLeaderEvals?.forEach((le: any) => {
         const empId = le.employee_id;
         if (employeeMap.has(empId)) {
           const emp = employeeMap.get(empId)!;
@@ -260,7 +297,7 @@ export const evaluationService = {
       });
 
       // Processar avaliações de consenso (apenas atualizar os dados existentes)
-      consensusEvals?.forEach((ce: any) => {
+      filteredConsensusEvals?.forEach((ce: any) => {
         const empId = ce.employee_id;
         if (employeeMap.has(empId)) {
           const emp = employeeMap.get(empId)!;
@@ -269,6 +306,12 @@ export const evaluationService = {
           emp.consensus_performance_score = ce.consensus_score;
           emp.consensus_potential_score = ce.potential_score;
           emp.ninebox_position = ce.nine_box_position;
+          // Campos de promoção Nine Box
+          emp.promoted_potential_quadrant = ce.promoted_potential_quadrant || null;
+          emp.promoted_by = ce.promoted_by || null;
+          emp.promoted_at = ce.promoted_at || null;
+          // Deliberações do comitê
+          emp.committee_deliberations = ce.committee_deliberations || null;
         }
       });
 
@@ -281,15 +324,6 @@ export const evaluationService = {
         ninebox_position: emp.ninebox_position ?? null
       }));
 
-      // Log para verificar diretores
-      const directors = finalResult.filter(emp => emp.self_evaluation_status === 'n/a');
-      if (directors.length > 0) {
-        console.log(`✅ Found ${directors.length} director(s) with n/a status:`);
-        directors.forEach(d => {
-          console.log(`  - ${d.employee_name}: self=${d.self_evaluation_status}, consensus=${d.consensus_status}`);
-        });
-      }
-
       return finalResult;
     } catch (error: any) {
       console.error('Service error:', error);
@@ -298,7 +332,7 @@ export const evaluationService = {
   },
 
   // Dados do Nine Box
-  async getNineBoxData(supabase: any, cycleId: string) {
+  async getNineBoxData(supabase: any, cycleId: string, currentUserEmail?: string) {
     try {
       const { data, error } = await supabase
         .from('consensus_evaluations')
@@ -307,6 +341,7 @@ export const evaluationService = {
           employee:users!employee_id(
             id,
             name,
+            email,
             position,
             department:departments(name)
           )
@@ -315,7 +350,11 @@ export const evaluationService = {
 
       if (error) throw new ApiError(500, error.message);
 
-      return data?.map((item: any) => ({
+      // Aplicar filtro de usuários restritos (geral + avaliações)
+      let filteredData = filterRestrictedEmployeeRelations(currentUserEmail, data || []);
+      filteredData = filterEvaluationRestrictedEmployeeRelations(currentUserEmail, filteredData);
+
+      return filteredData?.map((item: any) => ({
         employee_id: item.employee_id,
         employee_name: item.employee?.name || '',
         position: item.employee?.position || '',
@@ -347,15 +386,37 @@ export const evaluationService = {
           evaluation_competencies!self_evaluation_id (*)
         `)
         .eq('employee_id', employeeId);
-      
+
       if (cycleId) {
         query = query.eq('cycle_id', cycleId);
       }
-      
+
       const { data, error } = await query.order('created_at', { ascending: false });
-      
+
       if (error) throw new ApiError(500, error.message);
       return data || [];
+    } catch (error: any) {
+      console.error('Service error:', error);
+      throw error;
+    }
+  },
+
+  // Buscar autoavaliação específica por ID
+  async getSelfEvaluationById(supabase: any, evaluationId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('self_evaluations')
+        .select(`
+          *,
+          evaluation_competencies!self_evaluation_id (*),
+          employee:users!employee_id(id, name, email, cargo, department),
+          cycle:evaluation_cycles!cycle_id(id, title)
+        `)
+        .eq('id', evaluationId)
+        .single();
+
+      if (error) throw new ApiError(500, error.message);
+      return data;
     } catch (error: any) {
       console.error('Service error:', error);
       throw error;
@@ -372,28 +433,33 @@ export const evaluationService = {
       const finalScore = this.calculateFinalScore(evaluationData.competencies);
 
       // Criar a autoavaliação
+      const insertData = {
+        cycle_id: evaluationData.cycleId,
+        employee_id: evaluationData.employeeId,
+        status: 'completed',
+        technical_score: technicalScore,
+        behavioral_score: behavioralScore,
+        deliveries_score: deliveriesScore, // Pode ser null
+        final_score: finalScore,
+        knowledge: evaluationData.toolkit?.knowledge || [],
+        tools: evaluationData.toolkit?.tools || [],
+        strengths_internal: evaluationData.toolkit?.strengths_internal || [],
+        qualities: evaluationData.toolkit?.qualities || [],
+        evaluation_date: new Date().toISOString().split('T')[0],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
       const { data: evaluation, error: evalError } = await supabase
         .from('self_evaluations')
-        .insert({
-          cycle_id: evaluationData.cycleId,
-          employee_id: evaluationData.employeeId,
-          status: 'completed',
-          technical_score: technicalScore,
-          behavioral_score: behavioralScore,
-          deliveries_score: deliveriesScore, // Pode ser null
-          final_score: finalScore,
-          knowledge: evaluationData.toolkit?.knowledge || [],
-          tools: evaluationData.toolkit?.tools || [],
-          strengths_internal: evaluationData.toolkit?.strengths_internal || [],
-          qualities: evaluationData.toolkit?.qualities || [],
-          evaluation_date: new Date().toISOString().split('T')[0],
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
+        .insert(insertData)
         .select()
         .single();
 
-      if (evalError) throw new ApiError(500, evalError.message);
+      if (evalError) {
+        console.error('Erro ao inserir autoavaliação:', evalError);
+        throw new ApiError(500, evalError.message);
+      }
 
       // Salvar as competências avaliadas
       if (evaluationData.competencies && evaluationData.competencies.length > 0) {
@@ -412,12 +478,15 @@ export const evaluationService = {
           .from('evaluation_competencies')
           .insert(competenciesToInsert);
 
-        if (compError) throw new ApiError(500, compError.message);
+        if (compError) {
+          console.error('Erro ao inserir competências:', compError);
+          throw new ApiError(500, compError.message);
+        }
       }
 
       return evaluation;
     } catch (error: any) {
-      console.error('Service error:', error);
+      console.error('Erro ao criar autoavaliação:', error.message);
       throw error;
     }
   },
@@ -437,15 +506,38 @@ export const evaluationService = {
           evaluator:users!evaluator_id(id, name)
         `)
         .eq('employee_id', employeeId);
-      
+
       if (cycleId) {
         query = query.eq('cycle_id', cycleId);
       }
-      
+
       const { data, error } = await query.order('created_at', { ascending: false });
-      
+
       if (error) throw new ApiError(500, error.message);
       return data || [];
+    } catch (error: any) {
+      console.error('Service error:', error);
+      throw error;
+    }
+  },
+
+  // Buscar avaliação de líder específica por ID
+  async getLeaderEvaluationById(supabase: any, evaluationId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('leader_evaluations')
+        .select(`
+          *,
+          evaluation_competencies!leader_evaluation_id (*),
+          evaluator:users!evaluator_id(id, name, email),
+          employee:users!employee_id(id, name, email, cargo, department),
+          cycle:evaluation_cycles!cycle_id(id, title)
+        `)
+        .eq('id', evaluationId)
+        .single();
+
+      if (error) throw new ApiError(500, error.message);
+      return data;
     } catch (error: any) {
       console.error('Service error:', error);
       throw error;
@@ -474,6 +566,7 @@ export const evaluationService = {
           deliveries_score: deliveriesScore, // Pode ser null
           final_score: finalScore,
           potential_score: evaluationData.potentialScore,
+          potential_details: evaluationData.potentialDetails || null, // Notas individuais de potencial
           evaluation_date: new Date().toISOString().split('T')[0],
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
@@ -681,7 +774,7 @@ export const evaluationService = {
 
   // Calcular posição no Nine Box
   calculateNineBoxPosition(performance: number, potential: number): string {
-    const perfLevel = performance <= 2 ? 'low' : performance <= 3 ? 'medium' : 'high';
+    const perfLevel = performance < 2 ? 'low' : performance < 3 ? 'medium' : 'high';
     const potLevel = potential <= 2 ? 'low' : potential <= 3 ? 'medium' : 'high';
 
     const positions: { [key: string]: string } = {
@@ -701,16 +794,17 @@ export const evaluationService = {
 
   // Calcular posição no Nine Box no formato B1-B9
   calculateNineBoxCode(performance: number, potential: number): string {
-    // Performance: 1-2 = baixo (B1, B2, B3), 2.01-3 = médio (B4, B5, B6), 3.01-4 = alto (B7, B8, B9)
-    // Potential: 1-2 = baixo (coluna 1), 2.01-3 = médio (coluna 2), 3.01-4 = alto (coluna 3)
+    // Lógica padronizada:
+    // Performance: < 2.0 = baixo (B1, B2, B3), 2.0-2.99 = médio (B4, B5, B6), >= 3.0 = alto (B7, B8, B9)
+    // Potencial: <= 2.0 = baixo (coluna 1, inclui 2.0), 2.01-3.0 = médio (coluna 2), > 3.0 = alto (coluna 3)
 
     let perfRow: number;
     let potCol: number;
 
     // Determinar linha (baseado em performance)
-    if (performance <= 2) {
+    if (performance < 2) {
       perfRow = 0; // Linha inferior (B1, B2, B3)
-    } else if (performance <= 3) {
+    } else if (performance < 3) {
       perfRow = 1; // Linha do meio (B4, B5, B6)
     } else {
       perfRow = 2; // Linha superior (B7, B8, B9)
@@ -902,6 +996,222 @@ export const evaluationService = {
 
       if (error) throw new ApiError(500, error.message);
       return data;
+    } catch (error: any) {
+      console.error('Service error:', error);
+      throw error;
+    }
+  },
+
+  // ====================================
+  // PROMOÇÃO DE QUADRANTE NINE BOX
+  // ====================================
+
+  /**
+   * Define a posição de potencial de um colaborador no Nine Box
+   * Só é permitido quando a nota de potencial é exatamente 2.0 ou 3.0 (limite entre quadrantes)
+   * Permite manter na posição atual ou mover para o quadrante superior
+   */
+  async promoteNineBoxQuadrant(
+    supabase: any,
+    consensusId: string,
+    promotedPotentialQuadrant: number,
+    promotedBy: string
+  ) {
+    try {
+      // Primeiro, buscar a avaliação de consenso atual
+      const { data: consensus, error: fetchError } = await supabase
+        .from('consensus_evaluations')
+        .select('*')
+        .eq('id', consensusId)
+        .single();
+
+      if (fetchError) {
+        throw new ApiError(404, 'Avaliação de consenso não encontrada');
+      }
+
+      // Verificar se já foi definido
+      if (consensus.promoted_potential_quadrant !== null) {
+        throw new ApiError(400, 'A posição deste colaborador já foi definida e não pode ser alterada');
+      }
+
+      // Verificar se a nota de potencial permite movimentação (~2.0 ou ~3.0)
+      const potentialScore = Number(consensus.potential_score);
+      const isScore2 = potentialScore >= 1.99 && potentialScore <= 2.01;
+      const isScore3 = potentialScore >= 2.99 && potentialScore <= 3.01;
+
+      if (!isScore2 && !isScore3) {
+        throw new ApiError(400, `Movimentação só é permitida quando a nota de potencial é 2.0 ou 3.0. Nota atual: ${potentialScore}`);
+      }
+
+      // Validar quadrantes permitidos baseado na nota de potencial
+      // Nota ~2.0 = pode escolher quadrante 1 (Baixo) ou 2 (Médio)
+      // Nota ~3.0 = pode escolher quadrante 2 (Médio) ou 3 (Alto)
+      let validQuadrants: number[];
+      if (isScore2) {
+        validQuadrants = [1, 2]; // Baixo ou Médio
+      } else {
+        validQuadrants = [2, 3]; // Médio ou Alto
+      }
+
+      if (!validQuadrants.includes(promotedPotentialQuadrant)) {
+        throw new ApiError(400, `Quadrante inválido. Para nota ${potentialScore}, os quadrantes válidos são: ${validQuadrants.join(' ou ')}`);
+      }
+
+      // Atualizar a avaliação de consenso com a posição definida
+      const { data: updated, error: updateError } = await supabase
+        .from('consensus_evaluations')
+        .update({
+          promoted_potential_quadrant: promotedPotentialQuadrant,
+          promoted_by: promotedBy,
+          promoted_at: new Date().toISOString()
+        })
+        .eq('id', consensusId)
+        .select()
+        .single();
+
+      if (updateError) {
+        throw new ApiError(500, 'Erro ao salvar posição: ' + updateError.message);
+      }
+
+      return updated;
+    } catch (error: any) {
+      console.error('Service error:', error);
+      throw error;
+    }
+  },
+
+  // ====================================
+  // DELIBERAÇÕES DO COMITÊ
+  // ====================================
+
+  /**
+   * Salva as deliberações do comitê para um colaborador
+   */
+  async saveCommitteeDeliberations(
+    supabase: any,
+    consensusId: string,
+    deliberations: string
+  ) {
+    try {
+      const { data, error } = await supabase
+        .from('consensus_evaluations')
+        .update({
+          committee_deliberations: deliberations,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', consensusId)
+        .select()
+        .single();
+
+      if (error) {
+        throw new ApiError(500, 'Erro ao salvar deliberações: ' + error.message);
+      }
+
+      return data;
+    } catch (error: any) {
+      console.error('Service error:', error);
+      throw error;
+    }
+  },
+
+  // ====================================
+  // HISTÓRICO DE AVALIAÇÕES POR CICLO
+  // ====================================
+
+  async getEmployeeEvaluationHistory(supabase: any, employeeId: string) {
+    try {
+      // Buscar avaliações (self e leader) do colaborador
+      const [selfEvalsResult, leaderEvalsResult, consensusResult, cyclesResult] = await Promise.all([
+        supabase
+          .from('self_evaluations')
+          .select('cycle_id, final_score')
+          .eq('employee_id', employeeId),
+        supabase
+          .from('leader_evaluations')
+          .select('cycle_id, final_score')
+          .eq('employee_id', employeeId),
+        supabase
+          .from('consensus_evaluations')
+          .select('cycle_id, consensus_score, potential_score, nine_box_position')
+          .eq('employee_id', employeeId),
+        supabase
+          .from('evaluation_cycles')
+          .select('id, title, start_date, end_date')
+          .in('status', ['open', 'closed'])
+          .order('start_date', { ascending: false })
+      ]);
+
+      const selfEvals = selfEvalsResult.data || [];
+      const leaderEvals = leaderEvalsResult.data || [];
+      const consensusEvals = consensusResult.data || [];
+      const cycles = cyclesResult.data || [];
+
+      // Mapear avaliações por cycle_id
+      const selfMap = new Map<string, number | null>();
+      selfEvals.forEach((se: any) => {
+        selfMap.set(se.cycle_id, se.final_score);
+      });
+
+      const leaderMap = new Map<string, number | null>();
+      leaderEvals.forEach((le: any) => {
+        leaderMap.set(le.cycle_id, le.final_score);
+      });
+
+      const consensusMap = new Map<string, any>();
+      consensusEvals.forEach((ce: any) => {
+        consensusMap.set(ce.cycle_id, {
+          consensus_score: ce.consensus_score,
+          potential_score: ce.potential_score,
+          nine_box_position: ce.nine_box_position
+        });
+      });
+
+      // Combinar dados por ciclo
+      const history = cycles
+        .filter((cycle: any) => {
+          return selfMap.has(cycle.id) || leaderMap.has(cycle.id) || consensusMap.has(cycle.id);
+        })
+        .map((cycle: any) => {
+          const consensus = consensusMap.get(cycle.id);
+          return {
+            cycle_id: cycle.id,
+            cycle_title: cycle.title,
+            start_date: cycle.start_date,
+            end_date: cycle.end_date,
+            self_score: selfMap.get(cycle.id) ?? null,
+            leader_score: leaderMap.get(cycle.id) ?? null,
+            consensus_score: consensus?.consensus_score ?? null,
+            potential_score: consensus?.potential_score ?? null,
+            nine_box_position: consensus?.nine_box_position ?? null
+          };
+        });
+
+      return history;
+    } catch (error: any) {
+      console.error('Service error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Busca as deliberações do comitê para um colaborador
+   */
+  async getCommitteeDeliberations(
+    supabase: any,
+    consensusId: string
+  ) {
+    try {
+      const { data, error } = await supabase
+        .from('consensus_evaluations')
+        .select('committee_deliberations')
+        .eq('id', consensusId)
+        .single();
+
+      if (error) {
+        throw new ApiError(500, 'Erro ao buscar deliberações: ' + error.message);
+      }
+
+      return data?.committee_deliberations || '';
     } catch (error: any) {
       console.error('Service error:', error);
       throw error;

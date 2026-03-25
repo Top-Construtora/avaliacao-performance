@@ -1,3 +1,5 @@
+import { lazy, Suspense } from 'react';
+import { Loader2 } from 'lucide-react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { ThemeProvider } from './context/ThemeContext';
@@ -6,36 +8,56 @@ import { UserProvider } from './context/UserContext';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
-import Login from './pages/auth/Login';
-import UserManagement from './pages/users/UserManagement';
-import TeamManagement from './pages/teams/TeamManagement';
-import DepartmentManagement from './pages/departments/DepartmentManagement';
-import ResetPassword from './pages/auth/ResetPassword';
-import Dashboard from './pages/home/Dashboard';
-import SelfEvaluation from './pages/evaluations/SelfEvaluation';
-import LeaderEvaluation from './pages/evaluations/LeaderEvaluation';
-import NineBoxGuide from './pages/evaluations/NineBoxGuide';
-import RegisterUser from './pages/users/RegisterUser';
-import RegisterTeam from './pages/teams/RegisterTeam';
-import RegisterDepartment from './pages/departments/RegisterDepartment';
-import UserEdit from './pages/users/EditUser'; 
-import EditTeam from './pages/teams/EditTeam'; 
-import EditDepartment from './pages/departments/EditDepartment'; 
-import Consensus from './pages/evaluations/Consensus';
-import Reports from './pages/reports/Reports';
-import Settings from './pages/settings/Settings';
-import HelpPage from './pages/help/HelpPage';
-import NotFound from './pages/NotFound';
-import NineBoxMatrix from './pages/evaluations/NineBox';
-import NotificationHistory from './pages/notifications/NotificationHistory';
-import EvaluationDashboard from './pages/reports/EvaluationDashboard';
-import CycleManagement from './pages/management/CycleManagement';
-import SalaryAdminPage from './pages/management/SalaryAdminPage';
-import TrackPositionsPage from './pages/carrer/TrackPositionsPage';
-import CareerTrackDetail from './pages/carrer/CareerTrackDetail';
-import PdiManagement from './pages/pdi/PdiManagement'; // Import the new PDI Management page
-import MyPdi from './pages/pdi/MyPdi'; // Import the My PDI page
-import CodigoCultural from './pages/management/CodigoCultural';
+
+// Lazy loaded pages
+const Login = lazy(() => import('./pages/auth/Login'));
+const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
+const Dashboard = lazy(() => import('./pages/home/Dashboard'));
+const SelfEvaluation = lazy(() => import('./pages/evaluations/SelfEvaluation'));
+const LeaderEvaluation = lazy(() => import('./pages/evaluations/LeaderEvaluation'));
+const NineBoxGuide = lazy(() => import('./pages/evaluations/NineBoxGuide'));
+const NineBoxMatrix = lazy(() => import('./pages/evaluations/NineBox'));
+const Consensus = lazy(() => import('./pages/evaluations/Consensus'));
+const UserManagement = lazy(() => import('./pages/users/UserManagement'));
+const RegisterUser = lazy(() => import('./pages/users/RegisterUser'));
+const UserEdit = lazy(() => import('./pages/users/EditUser'));
+const TeamManagement = lazy(() => import('./pages/teams/TeamManagement'));
+const RegisterTeam = lazy(() => import('./pages/teams/RegisterTeam'));
+const EditTeam = lazy(() => import('./pages/teams/EditTeam'));
+const DepartmentManagement = lazy(() => import('./pages/departments/DepartmentManagement'));
+const RegisterDepartment = lazy(() => import('./pages/departments/RegisterDepartment'));
+const EditDepartment = lazy(() => import('./pages/departments/EditDepartment'));
+const Reports = lazy(() => import('./pages/reports/Reports'));
+const EvaluationDashboard = lazy(() => import('./pages/reports/EvaluationDashboard'));
+const Settings = lazy(() => import('./pages/settings/Settings'));
+const HelpPage = lazy(() => import('./pages/help/HelpPage'));
+const NotificationHistory = lazy(() => import('./pages/notifications/NotificationHistory'));
+const CycleManagement = lazy(() => import('./pages/management/CycleManagement'));
+const SalaryAdminPage = lazy(() => import('./pages/management/SalaryAdminPage'));
+const CodigoCultural = lazy(() => import('./pages/management/CodigoCultural'));
+const TrackPositionsPage = lazy(() => import('./pages/carrer/TrackPositionsPage'));
+const CareerTrackDetail = lazy(() => import('./pages/carrer/CareerTrackDetail'));
+const PdiManagement = lazy(() => import('./pages/pdi/PdiManagement'));
+const MyPdi = lazy(() => import('./pages/pdi/MyPdi'));
+const PdiCalendar = lazy(() => import('./pages/pdi/PdiCalendar'));
+const SatisfactionSurveys = lazy(() => import('./pages/satisfaction/SatisfactionSurveys'));
+const SatisfactionRespond = lazy(() => import('./pages/satisfaction/SatisfactionRespond'));
+const SatisfactionResults = lazy(() => import('./pages/satisfaction/SatisfactionResults'));
+const RecruitmentList = lazy(() => import('./pages/recruitment/RecruitmentList'));
+const RecruitmentForm = lazy(() => import('./pages/recruitment/RecruitmentForm'));
+const InterviewList = lazy(() => import('./pages/interviews/InterviewList'));
+const InterviewForm = lazy(() => import('./pages/interviews/InterviewForm'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+
+function PageLoader() {
+  return (
+    <div className="min-h-[200px] flex flex-col items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-primary-500 mx-auto mb-2" />
+      <p className="text-sm text-gray-500 dark:text-gray-400">Carregando...</p>
+    </div>
+  );
+}
 
 const USE_SUPABASE_AUTH = import.meta.env.VITE_USE_SUPABASE_AUTH === 'true';
 
@@ -85,8 +107,10 @@ function App() {
             <UserProvider>
               <EvaluationProvider>
                 <Toaster {...toasterConfig} />
+                <Suspense fallback={<PageLoader />}>
                 <Routes>
                   <Route path="/login" element={<Login />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
 
                   <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
@@ -140,7 +164,7 @@ function App() {
                     <Route
                       path="nine-box"
                       element={
-                        <ProtectedRoute allowedRoles={['director']}>
+                        <ProtectedRoute allowedRoles={['director', 'leader']}>
                           <NineBoxMatrix />
                         </ProtectedRoute>
                       }
@@ -307,6 +331,15 @@ function App() {
                     />
                     {/* PDI Management (New Route) */}
                     <Route path="pdi" element={<ProtectedRoute allowedRoles={['director', 'leader']}><PdiManagement /></ProtectedRoute>} />
+                    {/* PDI Calendar */}
+                    <Route
+                      path="pdi-calendar"
+                      element={
+                        <ProtectedRoute allowedRoles={['director', 'leader']}>
+                          <PdiCalendar />
+                        </ProtectedRoute>
+                      }
+                    />
 
                     {/* Código Cultural (Organizational Competencies) */}
                     <Route
@@ -317,10 +350,83 @@ function App() {
                         </ProtectedRoute>
                       }
                     />
+
+                    {/* Recrutamento e Seleção */}
+                    <Route
+                      path="recruitment"
+                      element={
+                        <ProtectedRoute allowedRoles={['director', 'leader']}>
+                          <RecruitmentList />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="recruitment/new"
+                      element={
+                        <ProtectedRoute allowedRoles={['director', 'leader']}>
+                          <RecruitmentForm />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="recruitment/:id"
+                      element={
+                        <ProtectedRoute allowedRoles={['director', 'leader']}>
+                          <RecruitmentForm />
+                        </ProtectedRoute>
+                      }
+                    />
+
+                    {/* Satisfação */}
+                    <Route path="satisfaction" element={<SatisfactionSurveys />} />
+                    <Route path="satisfaction/:id/respond" element={<SatisfactionRespond />} />
+                    <Route
+                      path="satisfaction/:id/results"
+                      element={
+                        <ProtectedRoute allowedRoles={['director']}>
+                          <SatisfactionResults />
+                        </ProtectedRoute>
+                      }
+                    />
+
+                    {/* Entrevistas */}
+                    <Route
+                      path="interviews"
+                      element={
+                        <ProtectedRoute allowedRoles={['director', 'leader']}>
+                          <InterviewList />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="interviews/new"
+                      element={
+                        <ProtectedRoute allowedRoles={['director', 'leader']}>
+                          <InterviewForm />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="interviews/:id"
+                      element={
+                        <ProtectedRoute allowedRoles={['director', 'leader']}>
+                          <InterviewForm />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="interviews/:id/edit"
+                      element={
+                        <ProtectedRoute allowedRoles={['director', 'leader']}>
+                          <InterviewForm />
+                        </ProtectedRoute>
+                      }
+                    />
                   </Route>
 
                   <Route path="*" element={<NotFound />} />
                 </Routes>
+                </Suspense>
               </EvaluationProvider>
             </UserProvider>
           </AuthProvider>
@@ -336,6 +442,7 @@ function App() {
             <UserProvider>
               <EvaluationProvider>
                 <Toaster {...toasterConfig} />
+                <Suspense fallback={<PageLoader />}>
                 <Routes>
                   <Route path="/" element={<Layout />}>
                     <Route index element={<Dashboard />} />
@@ -373,11 +480,27 @@ function App() {
                     <Route path="my-pdi" element={<MyPdi />} />
                     {/* PDI Management (New Route) */}
                     <Route path="pdi-management" element={<PdiManagement />} />
+                    {/* PDI Calendar */}
+                    <Route path="pdi-calendar" element={<PdiCalendar />} />
                     {/* Código Cultural */}
                     <Route path="codigo-cultural" element={<CodigoCultural />} />
+                    {/* Recrutamento e Seleção */}
+                    <Route path="recruitment" element={<RecruitmentList />} />
+                    <Route path="recruitment/new" element={<RecruitmentForm />} />
+                    <Route path="recruitment/:id" element={<RecruitmentForm />} />
+                    {/* Satisfação */}
+                    <Route path="satisfaction" element={<SatisfactionSurveys />} />
+                    <Route path="satisfaction/:id/respond" element={<SatisfactionRespond />} />
+                    <Route path="satisfaction/:id/results" element={<SatisfactionResults />} />
+                    {/* Entrevistas */}
+                    <Route path="interviews" element={<InterviewList />} />
+                    <Route path="interviews/new" element={<InterviewForm />} />
+                    <Route path="interviews/:id" element={<InterviewForm />} />
+                    <Route path="interviews/:id/edit" element={<InterviewForm />} />
                   </Route>
                   <Route path="*" element={<NotFound />} />
                 </Routes>
+                </Suspense>
               </EvaluationProvider>
             </UserProvider>
           </AuthProvider>

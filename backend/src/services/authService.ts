@@ -4,8 +4,6 @@ import { ApiError } from '../middleware/errorHandler';
 export const authService = {
   async login(email: string, password: string) {
     try {
-      console.log('🔐 Tentando fazer login para:', email);
-      
       const { data, error } = await supabaseAdmin.auth.signInWithPassword({
         email,
         password
@@ -29,7 +27,7 @@ export const authService = {
 
       if (profileError) {
         console.error('Profile fetch error:', profileError);
-        
+
         // Se não encontrar perfil, cria um básico
         const basicProfile = {
           id: data.user.id,
@@ -43,21 +41,19 @@ export const authService = {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         };
-        
+
         // Tenta criar o perfil
         const { data: newProfile, error: createError } = await supabaseAdmin
           .from('users')
           .insert(basicProfile)
           .select()
           .single();
-          
+
         if (createError) {
           console.error('Profile creation error:', createError);
           throw new ApiError(500, 'Erro ao criar perfil de usuário');
         }
-        
-        console.log('✅ Perfil criado com sucesso');
-        
+
         return {
           user: data.user,
           session: data.session,
@@ -69,8 +65,6 @@ export const authService = {
       if (!profile.active) {
         throw new ApiError(403, 'Usuário inativo. Entre em contato com o administrador.');
       }
-
-      console.log('✅ Login bem-sucedido');
 
       return {
         user: data.user,

@@ -203,7 +203,7 @@ const SalaryAdminPage = () => {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-800 dark:border-green-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
           <p className="mt-4 text-gray-600 dark:text-gray-400">Carregando dados...</p>
         </div>
       </div>
@@ -317,7 +317,7 @@ const SalaryAdminPage = () => {
                             title="Exportar dados da trilha"
                           >
                             {exportingTrack === track.id ? (
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-800" />
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500" />
                             ) : (
                               <Download className="h-4 w-4" />
                             )}

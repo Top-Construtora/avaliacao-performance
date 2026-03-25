@@ -26,16 +26,21 @@ router.get('/cycles/:cycleId/nine-box', evaluationController.getNineBoxData);
 // ROTAS DE AVALIAÇÕES
 // ====================================
 
+// Histórico de avaliações por ciclo
+router.get('/employee/:employeeId/evaluation-history', evaluationController.getEmployeeEvaluationHistory);
+
 // Rotas unificadas (usando a view)
 router.get('/employee/:employeeId', evaluationController.getEmployeeEvaluations);
 router.get('/check', evaluationController.checkExistingEvaluation);
 
 // Rotas específicas para autoavaliações
 router.get('/self-evaluations/:employeeId', evaluationController.getSelfEvaluations);
+router.get('/self-evaluation/:evaluationId', evaluationController.getSelfEvaluationById);
 router.post('/self', evaluationController.createSelfEvaluation);
 
 // Rotas específicas para avaliações de líder
 router.get('/leader-evaluations/:employeeId', evaluationController.getLeaderEvaluations);
+router.get('/leader-evaluation/:evaluationId', evaluationController.getLeaderEvaluationById);
 router.post('/leader', evaluationController.createLeaderEvaluation);
 
 // ====================================
@@ -44,5 +49,15 @@ router.post('/leader', evaluationController.createLeaderEvaluation);
 router.post('/pdi', evaluationController.savePDI);
 router.get('/pdi/:employeeId', evaluationController.getPDI);
 router.put('/pdi/:pdiId', evaluationController.updatePDI);
+
+// ====================================
+// ROTAS DE PROMOÇÃO NINE BOX
+// ====================================
+router.put('/consensus/:consensusId/promote', evaluationController.promoteNineBoxQuadrant);
+
+// ====================================
+// ROTAS DE DELIBERAÇÕES DO COMITÊ
+// ====================================
+router.put('/consensus/:consensusId/deliberations', evaluationController.saveCommitteeDeliberations);
 
 export default router;

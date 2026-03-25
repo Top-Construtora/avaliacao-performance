@@ -10,8 +10,6 @@ export const pdiController = {
       const authReq = req as AuthRequest;
       const { employeeId, cycleId, leaderEvaluationId, periodo } = req.body;
 
-      console.log('🎯 Controller - Recebido no backend:', req.body);
-
       if (!employeeId) {
         return res.status(400).json({
           success: false,
@@ -22,13 +20,9 @@ export const pdiController = {
       // Processar os dados do PDI vindos do frontend
       let processedItems;
       if (req.body.items && Array.isArray(req.body.items)) {
-        // Se já vem como array de items (formato direto)
         processedItems = req.body.items;
-        console.log('📋 Controller - Usando items diretos:', processedItems.length);
       } else {
-        // Se vem no formato com arrays separados (curtosPrazos, mediosPrazos, longosPrazos)
         processedItems = PDIUtils.processPDIData(req.body);
-        console.log('📋 Controller - Items processados:', processedItems.length);
       }
 
       if (!processedItems || processedItems.length === 0) {
@@ -38,18 +32,13 @@ export const pdiController = {
         });
       }
 
-      console.log('📝 Controller - Items antes da validação:', processedItems);
-
       // Validar items usando o método do service
       if (!pdiService.validatePDIItems(processedItems)) {
-        console.log('❌ Controller - Validação falhou');
         return res.status(400).json({
           success: false,
           error: 'Estrutura dos itens do PDI inválida'
         });
       }
-
-      console.log('✅ Controller - Validação passou, enviando para service');
 
       const pdi = await pdiService.savePDI(authReq.supabase, {
         employeeId,
@@ -66,7 +55,7 @@ export const pdiController = {
         data: pdi
       });
     } catch (error) {
-      console.error('Controller error:', error);
+      console.error('Erro ao salvar PDI:', error);
       next(error);
     }
   },
@@ -84,7 +73,37 @@ export const pdiController = {
         data: pdi
       });
     } catch (error) {
-      console.error('Controller error:', error);
+      console.error('Erro ao buscar PDI:', error);
+      next(error);
+    }
+  },
+
+  // Buscar todos os PDIs ativos (para calendário)
+  async getAllPDIs(req: Request, res: Response, next: NextFunction) {
+    try {
+      const authReq = req as AuthRequest;
+
+      const { data, error } = await authReq.supabase
+        .from('development_plans')
+        .select(`
+          id,
+          employee_id,
+          status,
+          items,
+          periodo,
+          timeline,
+          created_at,
+          updated_at,
+          employee:users!development_plans_employee_id_fkey(id, name, email, position, department_id)
+        `)
+        .eq('status', 'active')
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+
+      res.json({ success: true, data: data || [] });
+    } catch (error) {
+      console.error('Erro ao buscar todos os PDIs:', error);
       next(error);
     }
   },
@@ -102,7 +121,7 @@ export const pdiController = {
         data: pdis
       });
     } catch (error) {
-      console.error('Controller error:', error);
+      console.error('Erro ao buscar PDIs por ciclo:', error);
       next(error);
     }
   }

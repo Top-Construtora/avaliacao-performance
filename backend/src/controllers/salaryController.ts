@@ -269,65 +269,6 @@ export const salaryController = {
     }
   },
 
-  // ===== REGRAS DE PROGRESSÃO =====
-  async getProgressionRules(req: AuthRequest, res: Response, next: NextFunction) {
-    try {
-      const rules = await salaryService.getProgressionRules(req.supabase);
-      res.json({ success: true, data: rules });
-    } catch (error) {
-      next(error);
-    }
-  },
-
-  async getProgressionRuleById(req: AuthRequest, res: Response, next: NextFunction) {
-    try {
-      const { id } = req.params;
-      const rule = await salaryService.getProgressionRuleById(req.supabase, id);
-      res.json({ success: true, data: rule });
-    } catch (error) {
-      next(error);
-    }
-  },
-
-  async getRulesByFromPosition(req: AuthRequest, res: Response, next: NextFunction) {
-    try {
-      const { positionId } = req.params;
-      const rules = await salaryService.getRulesByFromPosition(req.supabase, positionId);
-      res.json({ success: true, data: rules });
-    } catch (error) {
-      next(error);
-    }
-  },
-
-  async createProgressionRule(req: AuthRequest, res: Response, next: NextFunction) {
-    try {
-      const newRule = await salaryService.createProgressionRule(req.supabase, req.body);
-      res.status(201).json({ success: true, data: newRule });
-    } catch (error) {
-      next(error);
-    }
-  },
-
-  async updateProgressionRule(req: AuthRequest, res: Response, next: NextFunction) {
-    try {
-      const { id } = req.params;
-      const updated = await salaryService.updateProgressionRule(req.supabase, id, req.body);
-      res.json({ success: true, data: updated });
-    } catch (error) {
-      next(error);
-    }
-  },
-
-  async deleteProgressionRule(req: AuthRequest, res: Response, next: NextFunction) {
-    try {
-      const { id } = req.params;
-      await salaryService.deleteProgressionRule(req.supabase, id);
-      res.json({ success: true, message: 'Progression rule deleted successfully' });
-    } catch (error) {
-      next(error);
-    }
-  },
-
   // ===== ATRIBUIÇÃO E GESTÃO DE USUÁRIOS =====
   async assignUserToTrack(req: AuthRequest, res: Response, next: NextFunction) {
     try {
@@ -374,11 +315,11 @@ export const salaryController = {
     }
   },
 
-  async getUserPossibleProgressions(req: AuthRequest, res: Response, next: NextFunction) {
+  async checkPeopleCommitteePermission(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { userId } = req.params;
-      const progressions = await salaryService.getUserPossibleProgressions(req.supabase, userId);
-      res.json({ success: true, data: progressions });
+      const permission = await salaryService.checkPeopleCommitteePermission(req.supabase, userId);
+      res.json({ success: true, data: permission });
     } catch (error) {
       next(error);
     }
@@ -388,8 +329,12 @@ export const salaryController = {
   async progressUser(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { userId } = req.params;
-      const { toTrackPositionId, toSalaryLevelId, progressionType, reason } = req.body;
-      
+      // Aceitar tanto snake_case (frontend) quanto camelCase
+      const toTrackPositionId = req.body.to_track_position_id || req.body.toTrackPositionId;
+      const toSalaryLevelId = req.body.to_salary_level_id || req.body.toSalaryLevelId;
+      const progressionType = req.body.progression_type || req.body.progressionType;
+      const reason = req.body.reason;
+
       const progression = await salaryService.progressUser(req.supabase, {
         userId,
         toTrackPositionId,
@@ -462,25 +407,14 @@ export const salaryController = {
   async exportTrackToPDF(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { trackId } = req.params;
-      console.log(`[PDF Export] Iniciando exportação para trilha ${trackId}`);
-
-      // Buscar informações da trilha para o nome do arquivo
       const track = await salaryService.getCareerTrackById(req.supabase, trackId);
-      console.log(`[PDF Export] Trilha encontrada: ${track.name}`);
-
       const pdfBuffer = await exportService.exportTrackToPDF(req.supabase, trackId);
-      console.log(`[PDF Export] PDF gerado com sucesso. Tamanho: ${pdfBuffer.length} bytes`);
-
-      // Sanitizar o nome do arquivo
       const fileName = `trilha_${track.name.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.pdf`;
-      console.log(`[PDF Export] Nome do arquivo: ${fileName}`);
 
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
       res.setHeader('Content-Length', pdfBuffer.length.toString());
-
       res.send(pdfBuffer);
-      console.log(`[PDF Export] Arquivo enviado com sucesso`);
     } catch (error) {
       console.error('[PDF Export] Erro ao exportar:', error);
       next(error);
@@ -490,25 +424,14 @@ export const salaryController = {
   async exportTrackToExcel(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { trackId } = req.params;
-      console.log(`[Excel Export] Iniciando exportação para trilha ${trackId}`);
-
-      // Buscar informações da trilha para o nome do arquivo
       const track = await salaryService.getCareerTrackById(req.supabase, trackId);
-      console.log(`[Excel Export] Trilha encontrada: ${track.name}`);
-
       const excelBuffer = await exportService.exportTrackToExcel(req.supabase, trackId);
-      console.log(`[Excel Export] Excel gerado com sucesso. Tamanho: ${excelBuffer.length} bytes`);
-
-      // Sanitizar o nome do arquivo
       const fileName = `trilha_${track.name.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.xlsx`;
-      console.log(`[Excel Export] Nome do arquivo: ${fileName}`);
 
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
       res.setHeader('Content-Length', excelBuffer.length.toString());
-
       res.send(excelBuffer);
-      console.log(`[Excel Export] Arquivo enviado com sucesso`);
     } catch (error) {
       console.error('[Excel Export] Erro ao exportar:', error);
       next(error);

@@ -6,6 +6,7 @@ import {
   teamsService,
   supabaseHelpers,
 } from '../services/supabase.service';
+import { dataCacheService } from '../services/dataCache.service';
 import type {
   Department,
   User,
@@ -24,10 +25,12 @@ export function useSupabaseDepartments() {
   const [error, setError] = useState<Error | null>(null);
 
   // Carregar departamentos
-  const loadDepartments = useCallback(async () => {
-    
+  const loadDepartments = useCallback(async (forceReload = false) => {
     try {
       setLoading(true);
+      if (forceReload) {
+        dataCacheService.invalidate();
+      }
       const data = await departmentsService.getAll();
       setDepartments(data);
       setError(null);
@@ -105,10 +108,12 @@ export function useSupabaseUsers() {
   const [error, setError] = useState<Error | null>(null);
 
   // Carregar usuários
-  const loadUsers = useCallback(async () => {
-    
+  const loadUsers = useCallback(async (forceReload = false) => {
     try {
       setLoading(true);
+      if (forceReload) {
+        dataCacheService.invalidate();
+      }
       const data = await usersService.getAll();
       setUsers(data);
       setError(null);
@@ -130,6 +135,28 @@ export function useSupabaseUsers() {
       throw err;
     }
   }, [loadUsers]);
+
+  // Atualizar usuário de forma otimista (sem recarregar toda a lista)
+  const updateUserOptimistic = useCallback(async (id: string, updates: Partial<User>) => {
+    // Salvar estado anterior para rollback em caso de erro
+    const previousUsers = users;
+
+    // Atualização otimista local imediata
+    setUsers(currentUsers =>
+      currentUsers.map(user =>
+        user.id === id ? { ...user, ...updates } : user
+      )
+    );
+
+    try {
+      const updated = await usersService.update(id, updates);
+      return updated;
+    } catch (err) {
+      // Rollback em caso de erro
+      setUsers(previousUsers);
+      throw err;
+    }
+  }, [users]);
 
   // Desativar usuário
   const deactivateUser = useCallback(async (id: string) => {
@@ -174,6 +201,7 @@ export function useSupabaseUsers() {
     error,
     reload: loadUsers,
     updateUser,
+    updateUserOptimistic,
     deactivateUser,
     activateUser,
     deleteUser,
@@ -189,10 +217,12 @@ export function useSupabaseTeams() {
   const [error, setError] = useState<Error | null>(null);
 
   // Carregar times
-  const loadTeams = useCallback(async () => {
-    
+  const loadTeams = useCallback(async (forceReload = false) => {
     try {
       setLoading(true);
+      if (forceReload) {
+        dataCacheService.invalidate();
+      }
       const data = await teamsService.getAll();
       setTeams(data);
       setError(null);
@@ -300,6 +330,7 @@ export function useSupabaseData() {
       },
       users: {
         update: users.updateUser,
+        updateOptimistic: users.updateUserOptimistic,
         deactivate: users.deactivateUser,
         activate: users.activateUser,
         delete: users.deleteUser,

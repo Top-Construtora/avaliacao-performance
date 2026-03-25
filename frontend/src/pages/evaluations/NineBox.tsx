@@ -1,9 +1,14 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { User, BarChart3, Calendar, Briefcase, TrendingUp, Target, Info, Grid3x3, Mail, Cake } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { User, BarChart3, Calendar, Briefcase, TrendingUp, Target, Info, Grid3x3, Mail, Cake, MessageSquare, ArrowUp, CheckCircle, AlertCircle, Lock, Loader2, FileText, Save, DollarSign } from 'lucide-react';
 import { useEvaluation } from '../../hooks/useEvaluation';
-import { useSupabaseUsers } from '../../hooks/useSupabaseData';
+import { useAuth } from '../../context/AuthContext';
+import { usePeopleCommitteePermission } from '../../hooks/usePeopleCommittee';
 import { supabase } from '../../lib/supabase';
+import { evaluationService } from '../../services/evaluation.service';
+import { toast } from 'react-hot-toast';
+import Button from '../../components/Button';
+import UserSalaryAssignment from '../../components/UserSalaryAssignment';
 
 interface MatrixConfig {
   bgColor: string;
@@ -32,7 +37,7 @@ const matrixConfig: Record<string, MatrixConfig> = {
     activeBorderColor: 'border-amber-500 dark:border-amber-400',
     gradient: 'from-amber-100 to-amber-50 dark:from-amber-900/30 dark:to-amber-900/20',
   },
-  '1,3': { 
+  '1,3': {
     bgColor: 'bg-emerald-50 dark:bg-emerald-900/20',
     borderColor: 'border-emerald-200 dark:border-emerald-700',
     textColor: 'text-emerald-700 dark:text-emerald-300',
@@ -48,13 +53,13 @@ const matrixConfig: Record<string, MatrixConfig> = {
     activeBorderColor: 'border-orange-500 dark:border-orange-400',
     gradient: 'from-orange-100 to-orange-50 dark:from-orange-900/30 dark:to-orange-900/20',
   },
-  '2,2': { 
-    bgColor: 'bg-green-50 dark:bg-green-900/20',
-    borderColor: 'border-green-200 dark:border-green-700',
-    textColor: 'text-green-700 dark:text-green-300',
+  '2,2': {
+    bgColor: 'bg-emerald-50 dark:bg-emerald-900/20',
+    borderColor: 'border-emerald-200 dark:border-emerald-700',
+    textColor: 'text-emerald-700 dark:text-emerald-300',
     description: 'Verificar a causa. Local ou Chefe inadequado? Não há desenvolvimento',
-    activeBorderColor: 'border-green-500 dark:border-green-400',
-    gradient: 'from-green-100 to-green-50 dark:from-green-900/30 dark:to-green-900/20',
+    activeBorderColor: 'border-emerald-500 dark:border-emerald-400',
+    gradient: 'from-emerald-100 to-emerald-50 dark:from-emerald-900/30 dark:to-emerald-900/20',
   },
   '2,3': { 
     bgColor: 'bg-blue-50 dark:bg-blue-900/20',
@@ -80,106 +85,351 @@ const matrixConfig: Record<string, MatrixConfig> = {
     activeBorderColor: 'border-indigo-500 dark:border-indigo-400',
     gradient: 'from-indigo-100 to-indigo-50 dark:from-indigo-900/30 dark:to-indigo-900/20',
   },
-  '3,3': { 
-    bgColor: 'bg-gradient-to-br from-green-800 to-green-900 dark:from-green-800 dark:to-green-900',
-    borderColor: 'border-green-800 dark:border-green-700',
+  '3,3': {
+    bgColor: 'bg-gradient-to-br from-[#002a20] to-[#001915] dark:from-[#002a20] dark:to-[#001915]',
+    borderColor: 'border-[#003b2b] dark:border-[#002a20]',
     textColor: 'text-white',
     description: 'Dar mais atribuições. Preparar para função maior. Líder do futuro!',
-    activeBorderColor: 'border-green-900 dark:border-green-800',
-    gradient: 'from-green-800 to-green-900 dark:from-green-800 dark:to-green-900',
+    activeBorderColor: 'border-[#001915] dark:border-[#001915]',
+    gradient: 'from-[#002a20] to-[#001915] dark:from-[#002a20] dark:to-[#001915]',
   }
 };
+
+const CYCLE_CACHE_KEY = 'ninebox_last_cycle_id';
 
 const NineBoxMatrix = () => {
   const {
     currentCycle,
     dashboard,
-    loadDashboard
+    loadDashboard,
+    employees,
+    reloadEmployees,
+    loading // Adicionar loading para feedback visual
   } = useEvaluation();
-  const { users } = useSupabaseUsers();
+
+  const { profile } = useAuth();
+  const { canViewPeopleCommittee, isRestrictedView, loading: permissionLoading } = usePeopleCommitteePermission();
 
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [hoveredQuadrant, setHoveredQuadrant] = useState<string | null>(null);
-  const [eligibleEmployees, setEligibleEmployees] = useState<any[]>([]);
-  const [salaryLevels, setSalaryLevels] = useState<Array<{ id: string; name: string; percentage: number }>>([]);
+  const [isLoadingDashboard, setIsLoadingDashboard] = useState(true);
+  const [subordinateIds, setSubordinateIds] = useState<Set<string>>(new Set());
+  const [isPromoting, setIsPromoting] = useState(false);
+  const [selectedQuadrantToMove, setSelectedQuadrantToMove] = useState<number | null>(null);
+  const [deliberations, setDeliberations] = useState('');
+  const [isSavingDeliberations, setIsSavingDeliberations] = useState(false);
+  const [deliberationsLoaded, setDeliberationsLoaded] = useState(false);
+  const [potentialDetails, setPotentialDetails] = useState<Record<string, { name: string; score: number }> | null>(null);
+  const [isLoadingPotentialDetails, setIsLoadingPotentialDetails] = useState(false);
+  const dashboardLoadedRef = useRef(false);
+  const [showSalaryModal, setShowSalaryModal] = useState(false);
 
-  // Carregar níveis salariais
+  // Verificar se o usuário pode definir posição (admin ou diretor)
+  const canPromote = profile?.role === 'admin' || profile?.is_admin === true || profile?.is_director === true;
+
+
+  // Carregar todos os subordinados (diretos e indiretos) para líderes com visualização restrita
   useEffect(() => {
-    const loadSalaryLevels = async () => {
-      try {
-        const { data } = await supabase
-          .from('salary_levels')
-          .select('id, name, percentage')
-          .order('order_index');
+    const loadAllSubordinates = async () => {
+      if (!isRestrictedView || !profile?.id) {
+        setSubordinateIds(new Set());
+        return;
+      }
 
-        if (data) setSalaryLevels(data);
+      try {
+        // Buscar todos os usuários para construir a hierarquia
+        const { data: allUsers } = await supabase
+          .from('users')
+          .select('id, reports_to')
+          .eq('active', true);
+
+        if (!allUsers) return;
+
+        // Função recursiva para encontrar todos os subordinados
+        const findAllSubordinates = (leaderId: string, visited = new Set<string>()): Set<string> => {
+          const directSubordinates = allUsers.filter(u => u.reports_to === leaderId);
+          const result = new Set<string>();
+
+          for (const sub of directSubordinates) {
+            if (!visited.has(sub.id)) {
+              visited.add(sub.id);
+              result.add(sub.id);
+              // Buscar subordinados dos subordinados (para líderes que lideram outros líderes)
+              const indirectSubs = findAllSubordinates(sub.id, visited);
+              indirectSubs.forEach(id => result.add(id));
+            }
+          }
+
+          return result;
+        };
+
+        const subs = findAllSubordinates(profile.id);
+        setSubordinateIds(subs);
       } catch (error) {
-        console.error('Erro ao carregar níveis salariais:', error);
+        console.error('Erro ao carregar subordinados:', error);
       }
     };
 
-    loadSalaryLevels();
-  }, []);
+    loadAllSubordinates();
+  }, [isRestrictedView, profile?.id]);
 
-  // Carregar dados do dashboard quando o ciclo atual mudar
+  // OTIMIZAÇÃO: Carregar dashboard imediatamente usando ciclo em cache
+  useEffect(() => {
+    const cachedCycleId = localStorage.getItem(CYCLE_CACHE_KEY);
+
+    // Se temos ciclo em cache e ainda não carregamos, começar a carregar imediatamente
+    if (cachedCycleId && !dashboardLoadedRef.current) {
+      dashboardLoadedRef.current = true;
+      setIsLoadingDashboard(true);
+      loadDashboard(cachedCycleId).finally(() => setIsLoadingDashboard(false));
+    } else if (!cachedCycleId) {
+      // Se não há cache, aguardar o ciclo carregar (mas não mostrar loading infinito)
+      // O loading será controlado pelo useEffect abaixo quando currentCycle carregar
+    }
+  }, [loadDashboard]);
+
+  // Quando o ciclo atual carregar, atualizar cache e recarregar se necessário
   useEffect(() => {
     if (currentCycle) {
-      loadDashboard(currentCycle.id);
+      const cachedCycleId = localStorage.getItem(CYCLE_CACHE_KEY);
+
+      // Salvar ciclo atual no cache
+      localStorage.setItem(CYCLE_CACHE_KEY, currentCycle.id);
+
+      // Se o ciclo mudou ou ainda não carregamos, carregar dashboard
+      if (cachedCycleId !== currentCycle.id || !dashboardLoadedRef.current) {
+        dashboardLoadedRef.current = true;
+        setIsLoadingDashboard(true);
+        loadDashboard(currentCycle.id).finally(() => setIsLoadingDashboard(false));
+      } else {
+        // Ciclo é o mesmo do cache e já carregamos - não está mais loading
+        setIsLoadingDashboard(false);
+      }
     }
   }, [currentCycle, loadDashboard]);
 
   // Filtrar colaboradores com avaliações de consenso completas
-  useEffect(() => {
-    if (dashboard && users) {
-      const eligible = dashboard
-        .filter(d => {
-          // Apenas incluir colaboradores que tenham avaliação de consenso com notas reais
-          const hasValidScores = d &&
-                 d.employee_id &&
-                 d.consensus_performance_score !== null &&
-                 d.consensus_performance_score !== undefined &&
-                 d.consensus_potential_score !== null &&
-                 d.consensus_potential_score !== undefined;
+  // Usando useMemo + Map para lookup O(1) em vez de O(n²)
+  const eligibleEmployees = useMemo(() => {
+    if (!dashboard || !employees || employees.length === 0) return [];
 
-          return hasValidScores;
-        })
-        .map(d => {
-          const user = users.find(u => u && u.id === d.employee_id);
+    // Criar Map para lookup O(1) em vez de .find() O(n)
+    const usersMap = new Map(employees.map(u => [u.id, u]));
 
-          return {
-            ...d,
-            user: user || null,
-            // Usa notas reais do banco de dados (consensus_evaluations)
-            // Os dados já vêm com os nomes corretos do backend
-            consensus_score: d.consensus_performance_score,
-            potential_score: d.consensus_potential_score,
-            // Garante que outros campos necessários existam
-            employee_name: d.employee_name || user?.name || 'Sem nome',
-            position: d.position || user?.position || 'Sem cargo'
-          };
-        })
-        // Filtra apenas os que têm dados completos
-        .filter(d => d.user !== null);
+    return dashboard
+      .filter(d => {
+        // Apenas incluir colaboradores que tenham avaliação de consenso com notas reais
+        const hasConsensus = d &&
+          d.employee_id &&
+          d.consensus_performance_score !== null &&
+          d.consensus_performance_score !== undefined &&
+          d.consensus_potential_score !== null &&
+          d.consensus_potential_score !== undefined;
 
-      setEligibleEmployees(eligible);
-    }
-  }, [dashboard, users]);
+        if (!hasConsensus) return false;
+
+        // Se for visualização restrita (líder), filtrar apenas subordinados
+        if (isRestrictedView && subordinateIds.size > 0) {
+          return subordinateIds.has(d.employee_id);
+        }
+
+        return true;
+      })
+      .map(d => {
+        const user = usersMap.get(d.employee_id) || null; // O(1) lookup
+
+        return {
+          ...d,
+          user,
+          // Usa notas reais do banco de dados (consensus_evaluations)
+          consensus_score: d.consensus_performance_score,
+          potential_score: d.consensus_potential_score,
+          // Garante que outros campos necessários existam
+          employee_name: d.employee_name || user?.name || 'Sem nome',
+          position: d.position || user?.position || 'Sem cargo'
+        };
+      })
+      // Filtra apenas os que têm dados completos
+      .filter(d => d.user !== null)
+      // Ordena alfabeticamente pelo nome
+      .sort((a, b) => a.employee_name.localeCompare(b.employee_name, 'pt-BR'));
+  }, [dashboard, employees, isRestrictedView, subordinateIds]);
 
   const selectedEvaluation = eligibleEmployees.find(e => e.employee_id === selectedEmployee);
   const selectedEmp = selectedEvaluation?.user;
 
   /**
-   * Calcula o salário baseado no cargo e nível salarial (intern_level)
+   * Retorna o potencial efetivo do colaborador
+   * Se foi movimentado para cima, posiciona logo acima do limite original
+   * Ex: nota 3 movida para Alto -> 3.01 (logo acima do limite)
+   * Ex: nota 2 movida para Médio -> 2.01 (logo acima do limite)
    */
-  const calculateSalary = (trackPosition: any, internLevel: string): number | null => {
-    if (!trackPosition?.base_salary || !internLevel) return null;
+  const getEffectivePotential = (evaluation: any): number => {
+    if (!evaluation) return 0;
 
-    const salaryLevel = salaryLevels.find(l => l.name === internLevel);
-    if (!salaryLevel) return null;
+    const originalScore = Number(evaluation.potential_score);
+    const promotedQuadrant = evaluation.promoted_potential_quadrant;
 
-    const baseSalary = trackPosition.base_salary;
-    const percentage = salaryLevel.percentage / 100;
-    return baseSalary + (baseSalary * percentage);
+    // Se foi movimentado (tem um quadrante definido)
+    if (promotedQuadrant !== null && promotedQuadrant !== undefined) {
+      const quadrant = Number(promotedQuadrant);
+
+      // Nota original ~2.0 e foi movido para Médio (quadrante 2) -> posicionar em 2.01
+      if (originalScore >= 1.99 && originalScore <= 2.01 && quadrant === 2) {
+        return 2.05;
+      }
+      // Nota original ~3.0 e foi movido para Alto (quadrante 3) -> posicionar em 3.01
+      if (originalScore >= 2.99 && originalScore <= 3.01 && quadrant === 3) {
+        return 3.05;
+      }
+      // Se manteve no quadrante inferior (quadrante 1 para nota 2, ou quadrante 2 para nota 3)
+      // manter a nota original
+      return originalScore;
+    }
+
+    return originalScore;
+  };
+
+  /**
+   * Verifica se o colaborador pode ser promovido (nota de potencial ~2.0 ou ~3.0)
+   */
+  const canBePromoted = (evaluation: any): boolean => {
+    if (!evaluation) return false;
+    const potentialScore = Number(evaluation.potential_score);
+    // Só pode promover se a nota for ~2 ou ~3 (limites entre quadrantes)
+    const isScore2 = potentialScore >= 1.99 && potentialScore <= 2.01;
+    const isScore3 = potentialScore >= 2.99 && potentialScore <= 3.01;
+    return isScore2 || isScore3;
+  };
+
+  /**
+   * Verifica se o colaborador já foi promovido
+   */
+  const isAlreadyPromoted = (evaluation: any): boolean => {
+    return evaluation?.promoted_potential_quadrant !== null && evaluation?.promoted_potential_quadrant !== undefined;
+  };
+
+  /**
+   * Retorna os quadrantes disponíveis para movimentação (atual e superior)
+   */
+  const getAvailableQuadrantOptions = (evaluation: any): { quadrant: number; label: string; isCurrent: boolean }[] => {
+    if (!evaluation) return [];
+    const potentialScore = Number(evaluation.potential_score);
+    const isScore2 = potentialScore >= 1.99 && potentialScore <= 2.01;
+    const isScore3 = potentialScore >= 2.99 && potentialScore <= 3.01;
+
+    if (isScore2) {
+      // Nota ~2.0 está no limite Baixo/Médio
+      // Pode manter em Baixo (1) ou mover para Médio (2)
+      return [
+        { quadrant: 1, label: 'Baixo (manter posição atual)', isCurrent: true },
+        { quadrant: 2, label: 'Médio (mover para cima)', isCurrent: false }
+      ];
+    } else if (isScore3) {
+      // Nota ~3.0 está no limite Médio/Alto
+      // Pode manter em Médio (2) ou mover para Alto (3)
+      return [
+        { quadrant: 2, label: 'Médio (manter posição atual)', isCurrent: true },
+        { quadrant: 3, label: 'Alto (mover para cima)', isCurrent: false }
+      ];
+    }
+
+    return [];
+  };
+
+  /**
+   * Retorna o label do quadrante de potencial
+   */
+  const getPotentialQuadrantLabel = (quadrant: number): string => {
+    switch (quadrant) {
+      case 1: return 'Baixo';
+      case 2: return 'Médio';
+      case 3: return 'Alto';
+      default: return 'Desconhecido';
+    }
+  };
+
+  /**
+   * Salva a posição do colaborador no quadrante
+   */
+  const handlePromote = async (quadrant: number) => {
+    if (!selectedEvaluation?.consensus_id || !canPromote) return;
+
+    setIsPromoting(true);
+    try {
+      await evaluationService.promoteNineBoxQuadrant(selectedEvaluation.consensus_id, quadrant);
+      toast.success(`Posição definida como ${getPotentialQuadrantLabel(quadrant)} com sucesso!`);
+      // Limpar seleção
+      setSelectedQuadrantToMove(null);
+      // Recarregar dashboard para atualizar os dados
+      if (currentCycle?.id) {
+        await loadDashboard(currentCycle.id);
+      }
+    } catch (error: any) {
+      console.error('Erro ao salvar posição:', error);
+      toast.error(error.response?.data?.error || 'Erro ao salvar posição');
+    } finally {
+      setIsPromoting(false);
+    }
+  };
+
+  // Limpar seleção de quadrante e carregar deliberações ao mudar de colaborador
+  useEffect(() => {
+    setSelectedQuadrantToMove(null);
+    setDeliberationsLoaded(false);
+    setPotentialDetails(null);
+
+    // Carregar deliberações do colaborador selecionado
+    if (selectedEvaluation?.committee_deliberations !== undefined) {
+      setDeliberations(selectedEvaluation.committee_deliberations || '');
+      setDeliberationsLoaded(true);
+    } else {
+      setDeliberations('');
+    }
+
+    // Carregar detalhes de potencial da avaliação do líder
+    const loadPotentialDetails = async () => {
+      if (!selectedEvaluation?.leader_evaluation_id || !currentCycle?.id) return;
+
+      setIsLoadingPotentialDetails(true);
+      try {
+        const { data, error } = await supabase
+          .from('leader_evaluations')
+          .select('potential_details')
+          .eq('id', selectedEvaluation.leader_evaluation_id)
+          .single();
+
+        if (!error && data?.potential_details) {
+          setPotentialDetails(data.potential_details as Record<string, { name: string; score: number }>);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar detalhes de potencial:', error);
+      } finally {
+        setIsLoadingPotentialDetails(false);
+      }
+    };
+
+    if (selectedEmployee) {
+      loadPotentialDetails();
+    }
+  }, [selectedEmployee, selectedEvaluation?.committee_deliberations, selectedEvaluation?.leader_evaluation_id, currentCycle?.id]);
+
+  /**
+   * Salva as deliberações do comitê
+   */
+  const handleSaveDeliberations = async () => {
+    if (!selectedEvaluation?.consensus_id) return;
+
+    setIsSavingDeliberations(true);
+    try {
+      await evaluationService.saveCommitteeDeliberations(selectedEvaluation.consensus_id, deliberations);
+      toast.success('Deliberações salvas com sucesso!');
+    } catch (error: any) {
+      console.error('Erro ao salvar deliberações:', error);
+      toast.error('Erro ao salvar deliberações');
+    } finally {
+      setIsSavingDeliberations(false);
+    }
   };
 
   /**
@@ -187,9 +437,8 @@ const NineBoxMatrix = () => {
    */
   const getQuadrant = (performance: number, potential: number): { row: number; col: number } => {
     // Determina o quadrante baseado nos intervalos:
-    // 1.0-1.999 = quadrante 1
-    // 2.0-2.999 = quadrante 2
-    // 3.0-4.0 = quadrante 3
+    // Performance: < 2.0 = quadrante 1, 2.0-2.99 = quadrante 2, >= 3.0 = quadrante 3
+    // Potencial: <= 2.0 = quadrante 1 (inclui 2.0), 2.01-3.0 = quadrante 2, > 3.0 = quadrante 3
 
     let perfQuadrant: number;
     let potQuadrant: number;
@@ -204,9 +453,9 @@ const NineBoxMatrix = () => {
     }
 
     // Potencial (linha)
-    if (potential < 2.0) {
+    if (potential <= 2.0) {
       potQuadrant = 1;
-    } else if (potential < 3.0) {
+    } else if (potential <= 3.0) {
       potQuadrant = 2;
     } else {
       potQuadrant = 3;
@@ -259,81 +508,92 @@ const NineBoxMatrix = () => {
   };
 
   /**
-   * Calcula a posição do ponto dentro da matriz
-   * Garante que o ponto fique sempre dentro dos limites do quadrante correto
+   * Calcula a posição EXATA do ponto dentro da matriz
+   *
+   * A matriz 9-Box visual tem:
+   * - Eixo X (Performance): Baixo (<2) | Médio (2-3) | Alto (≥3)
+   * - Eixo Y (Potencial): Alto (>3) | Médio (2-3) | Baixo (≤2) - de cima para baixo
+   *
+   * Mapeamento das notas para posições no grid (0-100%):
+   *
+   * Performance (X):
+   * - Nota 1 -> 0% (início do Baixo)
+   * - Nota 2 -> 33.33% (linha entre Baixo e Médio)
+   * - Nota 3 -> 66.66% (linha entre Médio e Alto)
+   * - Nota 4 -> 100% (fim do Alto)
+   *
+   * Potencial (Y) - invertido pois Alto fica no topo:
+   * - Nota 4 -> 0% (topo, Alto)
+   * - Nota 3 -> 33.33% (linha entre Alto e Médio)
+   * - Nota 2 -> 66.66% (linha entre Médio e Baixo)
+   * - Nota 1 -> 100% (fundo, Baixo)
    */
   const getPointPosition = (performance: number, potential: number) => {
     // Limita as notas entre 1 e 4
     const clampedPerf = Math.max(1, Math.min(4, performance));
     const clampedPot = Math.max(1, Math.min(4, potential));
 
-    // Determina o quadrante
-    const quadrant = getQuadrant(clampedPerf, clampedPot);
-
-    // Padding interno para o ponto não ultrapassar as bordas (15% de cada lado do quadrante)
-    const PADDING = 0.15;
-
-    // Calcula a posição relativa dentro do quadrante (0 a 1)
-    let perfRelative: number;
-    let potRelative: number;
-
-    // Performance (eixo X / coluna)
-    if (quadrant.col === 1) {
-      // Quadrante 1: notas 1.0-1.999
-      perfRelative = (clampedPerf - 1.0) / 1.0; // 0 a 1
-    } else if (quadrant.col === 2) {
-      // Quadrante 2: notas 2.0-2.999
-      perfRelative = (clampedPerf - 2.0) / 1.0; // 0 a 1
-    } else {
-      // Quadrante 3: notas 3.0-4.0
-      perfRelative = (clampedPerf - 3.0) / 1.0; // 0 a 1
-    }
-
-    // Potencial (eixo Y / linha)
-    if (quadrant.row === 1) {
-      // Quadrante 1: notas 1.0-1.999
-      potRelative = (clampedPot - 1.0) / 1.0; // 0 a 1
-    } else if (quadrant.row === 2) {
-      // Quadrante 2: notas 2.0-2.999
-      potRelative = (clampedPot - 2.0) / 1.0; // 0 a 1
-    } else {
-      // Quadrante 3: notas 3.0-4.0
-      potRelative = (clampedPot - 3.0) / 1.0; // 0 a 1
-    }
-
-    // Aplica padding para manter o ponto dentro do quadrante
-    perfRelative = perfRelative * (1 - 2 * PADDING) + PADDING;
-    potRelative = potRelative * (1 - 2 * PADDING) + PADDING;
-
-    // Cada quadrante ocupa 33.33% da matriz
+    // Cada quadrante ocupa 33.33% do grid
     const quadrantSize = 100 / 3;
 
-    // Calcula a posição final em porcentagem (0-100%)
-    const xPercent = (quadrant.col - 1) * quadrantSize + (perfRelative * quadrantSize);
-    // Inverte o Y porque o grid visual cresce de baixo para cima (linha 3 = topo)
-    const yPercent = (3 - quadrant.row) * quadrantSize + ((1 - potRelative) * quadrantSize);
+    // Performance (X): mapeia nota para posição
+    // Quadrante Baixo: 1-2 ocupa 0-33.33%
+    // Quadrante Médio: 2-3 ocupa 33.33-66.66%
+    // Quadrante Alto: 3-4 ocupa 66.66-100%
+    let xPercent: number;
+    if (clampedPerf < 2) {
+      // Dentro do quadrante Baixo: 1-2 -> 0-33.33%
+      xPercent = (clampedPerf - 1) * quadrantSize;
+    } else if (clampedPerf < 3) {
+      // Dentro do quadrante Médio: 2-3 -> 33.33-66.66%
+      xPercent = quadrantSize + (clampedPerf - 2) * quadrantSize;
+    } else {
+      // Dentro do quadrante Alto: 3-4 -> 66.66-100%
+      xPercent = 2 * quadrantSize + (clampedPerf - 3) * quadrantSize;
+    }
+
+    // Potencial (Y): mapeia nota para posição (invertido)
+    // Quadrante Alto: 3-4 ocupa 0-33.33% (topo)
+    // Quadrante Médio: 2-3 ocupa 33.33-66.66%
+    // Quadrante Baixo: 1-2 ocupa 66.66-100% (fundo)
+    let yPercent: number;
+    if (clampedPot > 3) {
+      // Dentro do quadrante Alto: 3-4 -> 33.33-0% (invertido)
+      yPercent = quadrantSize - (clampedPot - 3) * quadrantSize;
+    } else if (clampedPot > 2) {
+      // Dentro do quadrante Médio: 2-3 -> 66.66-33.33% (invertido)
+      yPercent = 2 * quadrantSize - (clampedPot - 2) * quadrantSize;
+    } else {
+      // Dentro do quadrante Baixo: 1-2 -> 100-66.66% (invertido)
+      yPercent = 100 - (clampedPot - 1) * quadrantSize;
+    }
 
     return { x: xPercent, y: yPercent };
   };
 
   /**
    * Verifica se um quadrante está ativo (contém o colaborador selecionado)
+   * Usa o potencial efetivo (considera movimentação de quadrante)
    */
   const isQuadrantActive = (row: number, col: number): boolean => {
     if (!selectedEvaluation) return false;
-    
+
     const quadrant = getQuadrant(
-      selectedEvaluation.consensus_score, 
-      selectedEvaluation.potential_score
+      selectedEvaluation.consensus_score,
+      getEffectivePotential(selectedEvaluation)
     );
     return quadrant.row === row && quadrant.col === col;
   };
 
+  /**
+   * Retorna informações do quadrante ativo
+   * Usa o potencial efetivo (considera movimentação de quadrante)
+   */
   const getActiveQuadrantInfo = () => {
     if (!selectedEvaluation) return null;
     const quadrant = getQuadrant(
-      selectedEvaluation.consensus_score, 
-      selectedEvaluation.potential_score
+      selectedEvaluation.consensus_score,
+      getEffectivePotential(selectedEvaluation)
     );
     const key = `${quadrant.row},${quadrant.col}`;
     return matrixConfig[key];
@@ -365,6 +625,51 @@ const NineBoxMatrix = () => {
     return `${age} anos`;
   };
 
+  // Verificar permissão para líderes
+  if (permissionLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center"
+        >
+          <Loader2 className="h-8 w-8 animate-spin text-primary-500 mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400">Verificando permissões...</p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Bloquear acesso se líder não tiver permissão no cargo
+  if (!canViewPeopleCommittee) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 max-w-md w-full mx-4 text-center"
+        >
+          <div className="w-16 h-16 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Lock className="w-8 h-8 text-yellow-600 dark:text-yellow-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+            Acesso Restrito
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            Seu cargo não possui permissão para acessar o Comitê de Gente. Entre em contato com o RH caso precise de acesso.
+          </p>
+          <button
+            onClick={() => window.history.back()}
+            className="w-full py-3 px-4 bg-primary-500 text-white rounded-xl hover:bg-primary-600 transition-colors"
+          >
+            Voltar
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
@@ -394,18 +699,28 @@ const NineBoxMatrix = () => {
             <label className="block text-sm font-medium text-naue-black dark:text-gray-300 font-medium mb-2">
               Colaborador
             </label>
-            <select
-              className="w-full rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-green-800 dark:focus:border-green-700 focus:ring-green-800 dark:focus:ring-green-700 text-naue-black dark:text-gray-300 font-medium text-sm sm:text-base"
-              value={selectedEmployee}
-              onChange={(e) => setSelectedEmployee(e.target.value)}
-            >
-              <option value="">Selecione um colaborador</option>
-              {eligibleEmployees.map((employee) => (
-                <option key={employee.employee_id} value={employee.employee_id}>
-                  {employee.employee_name}
+            <div className="relative">
+              <select
+                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-primary-500 focus:ring-primary-500 focus:bg-white dark:focus:bg-gray-600 transition-colors py-2.5 px-3 text-sm sm:text-base font-medium disabled:opacity-50 disabled:cursor-wait"
+                value={selectedEmployee}
+                onChange={(e) => setSelectedEmployee(e.target.value)}
+                disabled={isLoadingDashboard || loading}
+              >
+                <option value="">
+                  {isLoadingDashboard || loading ? 'Carregando colaboradores...' : 'Selecione um colaborador'}
                 </option>
-              ))}
-            </select>
+                {eligibleEmployees.map((employee) => (
+                  <option key={employee.employee_id} value={employee.employee_id}>
+                    {employee.employee_name}
+                  </option>
+                ))}
+              </select>
+              {(isLoadingDashboard || loading) && (
+                <div className="absolute right-10 top-1/2 -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-800 border-t-transparent"></div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Informações do colaborador com foto à esquerda e dados à direita */}
@@ -428,102 +743,152 @@ const NineBoxMatrix = () => {
                 </div>
               </div>
 
-              {/* Grid 2x4 com informações */}
-              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-naue-black dark:text-gray-300 font-medium mb-2">
-                    <Briefcase className="inline h-4 w-4 mr-1" />
-                    Cargo
-                  </label>
-                  <div className="px-3 py-2 bg-white dark:bg-gray-700 rounded-lg text-naue-black dark:text-gray-300 font-medium text-sm border border-gray-200 dark:border-gray-600">
-                    {selectedEmp.position}
+              {/* Grid em duas colunas: Pessoal | Cargo e Salário */}
+              <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Coluna Esquerda: Informações Pessoais */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Informações Pessoais</h4>
+
+                  <div>
+                    <label className="block text-sm font-medium text-naue-black dark:text-gray-300 font-medium mb-2">
+                      <Mail className="inline h-4 w-4 mr-1" />
+                      Email
+                    </label>
+                    <div className="px-3 py-2 bg-white dark:bg-gray-700 rounded-lg text-naue-black dark:text-gray-300 font-medium text-sm border border-gray-200 dark:border-gray-700 truncate">
+                      {selectedEmp.email || '-'}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-naue-black dark:text-gray-300 font-medium mb-2">
+                        <Calendar className="inline h-4 w-4 mr-1" />
+                        Data de Admissão
+                      </label>
+                      <div className="px-3 py-2 bg-white dark:bg-gray-700 rounded-lg text-naue-black dark:text-gray-300 font-medium text-sm border border-gray-200 dark:border-gray-700">
+                        {formatJoinDate(selectedEmp.join_date)}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-naue-black dark:text-gray-300 font-medium mb-2">
+                        <Cake className="inline h-4 w-4 mr-1" />
+                        Idade
+                      </label>
+                      <div className="px-3 py-2 bg-white dark:bg-gray-700 rounded-lg text-naue-black dark:text-gray-300 font-medium text-sm border border-gray-200 dark:border-gray-700">
+                        {calculateAge(selectedEmp.birth_date)}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-naue-black dark:text-gray-300 font-medium mb-2">
+                        <User className="inline h-4 w-4 mr-1" />
+                        Líder
+                      </label>
+                      <div className="px-3 py-2 bg-white dark:bg-gray-700 rounded-lg text-naue-black dark:text-gray-300 font-medium text-sm border border-gray-200 dark:border-gray-700 truncate">
+                        {selectedEmp.manager?.name || '-'}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-naue-black dark:text-gray-300 font-medium mb-2">
+                        <User className="inline h-4 w-4 mr-1" />
+                        Time
+                      </label>
+                      <div className="px-3 py-2 bg-white dark:bg-gray-700 rounded-lg text-naue-black dark:text-gray-300 font-medium text-sm border border-gray-200 dark:border-gray-700 truncate">
+                        {selectedEmp.teams && selectedEmp.teams.length > 0
+                          ? selectedEmp.teams.map(t => t.name).join(', ')
+                          : '-'}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-naue-black dark:text-gray-300 font-medium mb-2">
-                    <Calendar className="inline h-4 w-4 mr-1" />
-                    Data de Admissão
-                  </label>
-                  <div className="px-3 py-2 bg-white dark:bg-gray-700 rounded-lg text-naue-black dark:text-gray-300 font-medium text-sm border border-gray-200 dark:border-gray-600">
-                    {formatJoinDate(selectedEmp.join_date)}
+                {/* Coluna Direita: Cargo e Salário */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Cargo e Remuneração</h4>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-naue-black dark:text-gray-300 font-medium mb-2">
+                        <Briefcase className="inline h-4 w-4 mr-1" />
+                        Cargo
+                      </label>
+                      <div className="px-3 py-2 bg-white dark:bg-gray-700 rounded-lg text-naue-black dark:text-gray-300 font-medium text-sm border border-gray-200 dark:border-gray-700">
+                        {selectedEmp.position}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-naue-black dark:text-gray-300 font-medium mb-2">
+                        <TrendingUp className="inline h-4 w-4 mr-1" />
+                        Trilha
+                      </label>
+                      <div className="px-3 py-2 bg-white dark:bg-gray-700 rounded-lg text-naue-black dark:text-gray-300 font-medium text-sm border border-gray-200 dark:border-gray-700">
+                        {selectedEmp.track_position?.track?.name || '-'}
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-naue-black dark:text-gray-300 font-medium mb-2">
-                    <Mail className="inline h-4 w-4 mr-1" />
-                    Email
-                  </label>
-                  <div className="px-3 py-2 bg-white dark:bg-gray-700 rounded-lg text-naue-black dark:text-gray-300 font-medium text-sm border border-gray-200 dark:border-gray-600 truncate">
-                    {selectedEmp.email || '-'}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-naue-black dark:text-gray-300 font-medium mb-2">
+                        <Grid3x3 className="inline h-4 w-4 mr-1" />
+                        Classe Salarial
+                      </label>
+                      <div className="px-3 py-2 bg-white dark:bg-gray-700 rounded-lg text-naue-black dark:text-gray-300 font-medium text-sm border border-gray-200 dark:border-gray-700">
+                        {selectedEmp.track_position?.class?.name || selectedEmp.track_position?.class?.code || '-'}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-naue-black dark:text-gray-300 font-medium mb-2">
+                        <Target className="inline h-4 w-4 mr-1" />
+                        Nível Salarial
+                      </label>
+                      <div className="px-3 py-2 bg-white dark:bg-gray-700 rounded-lg text-naue-black dark:text-gray-300 font-medium text-sm border border-gray-200 dark:border-gray-700">
+                        {selectedEmp.salary_level?.name || selectedEmp.intern_level || '-'}
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-naue-black dark:text-gray-300 font-medium mb-2">
-                    <Cake className="inline h-4 w-4 mr-1" />
-                    Idade
-                  </label>
-                  <div className="px-3 py-2 bg-white dark:bg-gray-700 rounded-lg text-naue-black dark:text-gray-300 font-medium text-sm border border-gray-200 dark:border-gray-600">
-                    {calculateAge(selectedEmp.birth_date)}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-naue-black dark:text-gray-300 font-medium mb-2">
-                    <TrendingUp className="inline h-4 w-4 mr-1" />
-                    Trilha
-                  </label>
-                  <div className="px-3 py-2 bg-white dark:bg-gray-700 rounded-lg text-naue-black dark:text-gray-300 font-medium text-sm border border-gray-200 dark:border-gray-600">
-                    {selectedEmp.track?.name || '-'}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-naue-black dark:text-gray-300 font-medium mb-2">
-                    <Target className="inline h-4 w-4 mr-1" />
-                    Nível Salarial
-                  </label>
-                  <div className="px-3 py-2 bg-white dark:bg-gray-700 rounded-lg text-naue-black dark:text-gray-300 font-medium text-sm border border-gray-200 dark:border-gray-600">
-                    {selectedEmp.intern_level || '-'}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-naue-black dark:text-gray-300 font-medium mb-2">
-                    <Grid3x3 className="inline h-4 w-4 mr-1" />
-                    Classe Salarial
-                  </label>
-                  <div className="px-3 py-2 bg-white dark:bg-gray-700 rounded-lg text-naue-black dark:text-gray-300 font-medium text-sm border border-gray-200 dark:border-gray-600">
-                    {selectedEmp.track_position?.class?.name || '-'}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-naue-black dark:text-gray-300 font-medium mb-2">
-                    <TrendingUp className="inline h-4 w-4 mr-1" />
-                    Salário
-                  </label>
-                  <div className="px-3 py-2 bg-white dark:bg-gray-700 rounded-lg text-naue-black dark:text-gray-300 font-medium text-sm border border-gray-200 dark:border-gray-600">
-                    {(() => {
-                      // Calcular salário baseado no intern_level e cargo
-                      const calculatedSalary = calculateSalary(selectedEmp.track_position, selectedEmp.intern_level);
-
-                      if (calculatedSalary) {
-                        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(calculatedSalary);
-                      }
-
-                      // Fallback para current_salary se o cálculo falhar
-                      if (selectedEmp.current_salary) {
-                        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedEmp.current_salary);
-                      }
-
-                      return '-';
-                    })()}
+                  <div>
+                    <label className="block text-sm font-medium text-naue-black dark:text-gray-300 font-medium mb-2">
+                      <DollarSign className="inline h-4 w-4 mr-1" />
+                      Salário
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 px-3 py-2 bg-white dark:bg-gray-700 rounded-lg text-naue-black dark:text-gray-300 font-medium text-sm border border-gray-200 dark:border-gray-700">
+                        {selectedEmp.current_salary
+                          ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedEmp.current_salary)
+                          : '-'}
+                      </div>
+                      <button
+                        onClick={() => setShowSalaryModal(true)}
+                        className="p-2 rounded-lg bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors"
+                        title="Gerenciar cargo e salário"
+                      >
+                        <DollarSign className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Observações do colaborador */}
+          {selectedEmp && selectedEmp.observations && (
+            <div className="mt-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 border border-amber-200 dark:border-amber-700">
+              <label className="block text-sm font-medium text-amber-800 dark:text-amber-300 mb-2 flex items-center">
+                <MessageSquare className="inline h-4 w-4 mr-2" />
+                Observações / Anotações
+              </label>
+              <p className="text-sm text-amber-900 dark:text-amber-200 whitespace-pre-wrap">
+                {selectedEmp.observations}
+              </p>
             </div>
           )}
         </div>
@@ -547,17 +912,17 @@ const NineBoxMatrix = () => {
               
               <div className="space-y-4">
                 {/* Card de Performance */}
-                <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-900/20 rounded-lg sm:rounded-xl p-4 border border-green-200 dark:border-green-700">
+                <div className="bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-900/30 dark:to-primary-900/20 rounded-lg sm:rounded-xl p-4 border border-primary-200 dark:border-primary-700">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm font-medium text-naue-black dark:text-gray-300 font-medium">Performance</p>
-                    <TrendingUp className="h-4 w-4 text-green-800 dark:text-green-700" />
+                    <TrendingUp className="h-4 w-4 text-primary-800 dark:text-primary-700" />
                   </div>
-                  <p className="text-2xl sm:text-3xl font-bold text-green-800 dark:text-green-700">
+                  <p className="text-2xl sm:text-3xl font-bold text-primary-800 dark:text-primary-700">
                     {selectedEvaluation.consensus_score}
                   </p>
-                  <div className="mt-2 bg-green-200 dark:bg-green-900/50 rounded-full h-2">
+                  <div className="mt-2 bg-primary-200 dark:bg-primary-900/50 rounded-full h-2">
                     <div
-                      className="bg-green-800 dark:bg-green-700 h-2 rounded-full transition-all duration-300"
+                      className="bg-primary-800 dark:bg-primary-700 h-2 rounded-full transition-all duration-300"
                       style={{ width: `${(selectedEvaluation.consensus_score / 4) * 100}%` }}
                     />
                   </div>
@@ -586,32 +951,125 @@ const NineBoxMatrix = () => {
                     <p className="text-sm font-medium text-naue-black dark:text-gray-300 font-medium">Quadrante</p>
                     <Grid3x3 className="h-4 w-4 text-blue-800 dark:text-blue-700" />
                   </div>
-                  <div className="flex items-baseline gap-2">
+                  <div className="flex items-baseline gap-2 flex-wrap">
                     <p className="text-2xl sm:text-3xl font-bold text-blue-800 dark:text-blue-700">
-                      Box {getQuadrantName(selectedEvaluation.consensus_score, selectedEvaluation.potential_score)}
+                      Box {getQuadrantName(selectedEvaluation.consensus_score, getEffectivePotential(selectedEvaluation))}
                     </p>
                     <p className="text-sm font-semibold text-blue-700 dark:text-blue-400">
-                      {getBoxDescriptiveName(getQuadrantName(selectedEvaluation.consensus_score, selectedEvaluation.potential_score))}
+                      {getBoxDescriptiveName(getQuadrantName(selectedEvaluation.consensus_score, getEffectivePotential(selectedEvaluation)))}
                     </p>
                   </div>
                   <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
-                    Performance: {selectedEvaluation.consensus_score < 2 ? 'Baixo' : selectedEvaluation.consensus_score < 3 ? 'Médio' : 'Alto'} | Potencial: {selectedEvaluation.potential_score < 2 ? 'Baixo' : selectedEvaluation.potential_score < 3 ? 'Médio' : 'Alto'}
+                    Performance: {selectedEvaluation.consensus_score < 2 ? 'Baixo' : selectedEvaluation.consensus_score < 3 ? 'Médio' : 'Alto'} | Potencial: {getEffectivePotential(selectedEvaluation) <= 2 ? 'Baixo' : getEffectivePotential(selectedEvaluation) <= 3 ? 'Médio' : 'Alto'}
                   </p>
+                  {isAlreadyPromoted(selectedEvaluation) && (
+                    <div className="mt-2 flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded">
+                      <ArrowUp className="h-3 w-3" />
+                      <span>
+                        Movimentado do Box {getQuadrantName(selectedEvaluation.consensus_score, selectedEvaluation.potential_score)} para Box {getQuadrantName(selectedEvaluation.consensus_score, getEffectivePotential(selectedEvaluation))}
+                      </span>
+                    </div>
+                  )}
                 </div>
+
+                {/* Card de Movimentação de Quadrante - Aparece quando nota de potencial é 2.0 ou 3.0 */}
+                {canBePromoted(selectedEvaluation) && (
+                  <div className={`rounded-lg sm:rounded-xl p-4 border-2 ${
+                    isAlreadyPromoted(selectedEvaluation)
+                      ? 'bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/30 dark:to-emerald-900/20 border-emerald-300 dark:border-emerald-700'
+                      : 'bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-900/20 border-purple-300 dark:border-purple-700'
+                  }`}>
+                    {isAlreadyPromoted(selectedEvaluation) ? (
+                      // Colaborador já foi movimentado
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                          <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+                            Posição Definida
+                          </p>
+                          <Lock className="h-4 w-4 text-emerald-600 dark:text-emerald-400 ml-auto" />
+                        </div>
+                        <p className="text-xs text-emerald-700 dark:text-emerald-400">
+                          Quadrante de potencial definido como: <span className="font-bold">{getPotentialQuadrantLabel(selectedEvaluation.promoted_potential_quadrant!)}</span>
+                        </p>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-500 mt-1 opacity-75">
+                          Esta decisão não pode mais ser alterada.
+                        </p>
+                      </div>
+                    ) : (
+                      // Opção de movimentar
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <ArrowUp className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                          <p className="text-sm font-semibold text-purple-800 dark:text-purple-300">
+                            Movimentação de Posição
+                          </p>
+                        </div>
+                        <p className="text-xs text-purple-700 dark:text-purple-400 mb-4">
+                          A nota de potencial <span className="font-bold">({selectedEvaluation.potential_score})</span> está exatamente no limite entre dois quadrantes.
+                          {canPromote
+                            ? ' Selecione em qual quadrante de potencial este colaborador deve ser posicionado.'
+                            : ''
+                          }
+                        </p>
+                        {canPromote ? (
+                          <div className="space-y-3">
+                            {/* Select de posição */}
+                            <div>
+                              <label className="block text-xs font-medium text-purple-800 dark:text-purple-300 mb-1.5">
+                                Selecione a posição de potencial:
+                              </label>
+                              <select
+                                value={selectedQuadrantToMove ?? ''}
+                                onChange={(e) => setSelectedQuadrantToMove(e.target.value ? Number(e.target.value) : null)}
+                                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-primary-500 focus:ring-primary-500 focus:bg-white dark:focus:bg-gray-600 transition-colors py-2.5 px-3 text-sm"
+                              >
+                                <option value="">-- Selecione uma opção --</option>
+                                {getAvailableQuadrantOptions(selectedEvaluation).map((option) => (
+                                  <option key={option.quadrant} value={option.quadrant}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {/* Botão Salvar */}
+                            <Button
+                              onClick={() => selectedQuadrantToMove && handlePromote(selectedQuadrantToMove)}
+                              disabled={isPromoting || !selectedQuadrantToMove}
+                              variant="primary"
+                              size="sm"
+                              className="w-full"
+                            >
+                              {isPromoting ? (
+                                <span className="flex items-center justify-center gap-2">
+                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                  Salvando...
+                                </span>
+                              ) : (
+                                <span className="flex items-center justify-center gap-2">
+                                  <CheckCircle className="h-4 w-4" />
+                                  Salvar Posição
+                                </span>
+                              )}
+                            </Button>
+
+                            <p className="text-[10px] text-purple-600 dark:text-purple-500 text-center">
+                              Atenção: após salvar, esta decisão não poderá ser alterada.
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-purple-600 dark:text-purple-500 italic">
+                            Apenas administradores ou diretores podem definir a posição.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Card de Status Atual */}
-            {getActiveQuadrantInfo() && (
-              <div className={`rounded-xl sm:rounded-2xl p-4 sm:p-6 border-2 ${getActiveQuadrantInfo()!.borderColor} bg-gradient-to-br ${getActiveQuadrantInfo()!.gradient}`}>
-                <h4 className={`text-base sm:text-lg font-bold mb-3 ${getActiveQuadrantInfo()!.textColor}`}>
-                  Status Atual
-                </h4>
-                <p className={`text-sm ${getActiveQuadrantInfo()!.textColor} opacity-90`}>
-                  {getActiveQuadrantInfo()!.description}
-                </p>
-              </div>
-            )}
           </div>
 
           {/* Coluna Central e Direita - Matriz */}
@@ -676,20 +1134,22 @@ const NineBoxMatrix = () => {
                       ))}
                     </div>
 
-                    {/* Ponto do Colaborador */}
-                    {selectedEvaluation && (
-                      <motion.div
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                        className="absolute w-4 h-4 sm:w-5 sm:h-5 bg-gradient-to-br from-green-800 to-green-900 dark:from-green-800 dark:to-green-900 rounded-full shadow-lg dark:shadow-xl z-20 ring-4 ring-white dark:ring-gray-800"
-                        style={{
-                          left: `${getPointPosition(selectedEvaluation.consensus_score, selectedEvaluation.potential_score).x}%`,
-                          top: `${getPointPosition(selectedEvaluation.consensus_score, selectedEvaluation.potential_score).y}%`,
-                          transform: 'translate(-50%, -50%)'
-                        }}
-                      />
-                    )}
+                    {/* Ponto do Colaborador - usa potencial efetivo (considera movimentação) */}
+                    {selectedEvaluation && (() => {
+                      const effectivePotential = getEffectivePotential(selectedEvaluation);
+                      const position = getPointPosition(selectedEvaluation.consensus_score, effectivePotential);
+
+                      return (
+                        <div
+                          className="absolute w-4 h-4 sm:w-5 sm:h-5 bg-primary-500 dark:bg-primary-600 rounded-full shadow-lg dark:shadow-xl z-20 ring-4 ring-white dark:ring-gray-800 transition-all duration-500 ease-out"
+                          style={{
+                            left: `${position.x}%`,
+                            top: `${position.y}%`,
+                            transform: 'translate(-50%, -50%)'
+                          }}
+                        />
+                      );
+                    })()}
                   </div>
 
                   {/* Labels do eixo X */}
@@ -708,19 +1168,164 @@ const NineBoxMatrix = () => {
                 </div>
               </div>
 
-              {/* Info Box */}
-              <div className="mt-6 sm:mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg sm:rounded-xl border border-blue-200 dark:border-blue-700 flex items-start">
-                <Info className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400 mr-3 mt-0.5 flex-shrink-0" />
-                <div className="text-sm text-blue-700 dark:text-blue-300">
-                  <p className="font-semibold mb-1">Como interpretar a matriz:</p>
-                  <p className="opacity-90">
-                    A posição do colaborador é determinada pela combinação de sua performance (eixo horizontal) 
-                    e potencial (eixo vertical). Cada quadrante indica uma estratégia de desenvolvimento específica.
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Notas de Potencial - Só exibe se potentialDetails tiver dados */}
+      {selectedEvaluation && potentialDetails && Object.keys(potentialDetails).length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="bg-naue-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-md dark:shadow-lg border border-naue-border-gray dark:border-gray-700 p-6 sm:p-8"
+        >
+          <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-100 flex items-center mb-6">
+            <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-gray-600 dark:text-gray-400" />
+            Avaliação de Potencial
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            {/* Nota do Líder */}
+            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                Nota do Líder
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                    {selectedEvaluation.leader_potential_score !== null && selectedEvaluation.leader_potential_score !== undefined
+                      ? selectedEvaluation.leader_potential_score.toFixed(2)
+                      : '-'}
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Média das 4 competências de potencial
                   </p>
+                </div>
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                  !selectedEvaluation.leader_potential_score ? 'bg-gray-200 dark:bg-gray-600' :
+                  selectedEvaluation.leader_potential_score >= 3 ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400' :
+                  selectedEvaluation.leader_potential_score >= 2 ? 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-400' :
+                  'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-400'
+                }`}>
+                  <TrendingUp className="h-6 w-6" />
+                </div>
+              </div>
+            </div>
+
+            {/* Nota do Consenso */}
+            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                Nota Final (Consenso)
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                    {selectedEvaluation.consensus_potential_score !== null && selectedEvaluation.consensus_potential_score !== undefined
+                      ? selectedEvaluation.consensus_potential_score.toFixed(2)
+                      : selectedEvaluation.potential_score !== null && selectedEvaluation.potential_score !== undefined
+                      ? selectedEvaluation.potential_score.toFixed(2)
+                      : '-'}
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Nota validada no consenso
+                  </p>
+                </div>
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                  !selectedEvaluation.consensus_potential_score && !selectedEvaluation.potential_score ? 'bg-gray-200 dark:bg-gray-600' :
+                  (selectedEvaluation.consensus_potential_score || selectedEvaluation.potential_score || 0) >= 3 ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400' :
+                  (selectedEvaluation.consensus_potential_score || selectedEvaluation.potential_score || 0) >= 2 ? 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-400' :
+                  'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-400'
+                }`}>
+                  <Target className="h-6 w-6" />
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Notas por Competência */}
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
+              Notas por Competência de Potencial
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {Object.entries(potentialDetails).map(([id, detail]) => (
+                <div
+                  key={id}
+                  className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700"
+                >
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 truncate" title={detail.name}>
+                    {detail.name}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <div className={`text-xl font-bold ${
+                      detail.score >= 3 ? 'text-green-600 dark:text-green-400' :
+                      detail.score >= 2 ? 'text-yellow-600 dark:text-yellow-400' :
+                      'text-red-600 dark:text-red-400'
+                    }`}>
+                      {detail.score.toFixed(1)}
+                    </div>
+                    <div className="flex-1 bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all duration-300 ${
+                          detail.score >= 3 ? 'bg-green-500 dark:bg-green-400' :
+                          detail.score >= 2 ? 'bg-yellow-500 dark:bg-yellow-400' :
+                          'bg-red-500 dark:bg-red-400'
+                        }`}
+                        style={{ width: `${(detail.score / 4) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </motion.div>
+      )}
+
+      {/* Deliberações do Comitê */}
+      {selectedEvaluation && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-naue-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-md dark:shadow-lg border border-naue-border-gray dark:border-gray-700 p-6 sm:p-8"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-100 flex items-center">
+              <FileText className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-gray-600 dark:text-gray-400" />
+              Deliberações do Comitê
+            </h3>
+            <Button
+              onClick={handleSaveDeliberations}
+              disabled={isSavingDeliberations}
+              variant="primary"
+              size="sm"
+            >
+              {isSavingDeliberations ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Salvando...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Save className="h-4 w-4" />
+                  Salvar
+                </span>
+              )}
+            </Button>
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Registre as decisões e anotações do Comitê de Gente sobre {selectedEmp?.name}.
+          </p>
+          <textarea
+            value={deliberations}
+            onChange={(e) => setDeliberations(e.target.value)}
+            placeholder="Digite as deliberações, decisões e observações do comitê sobre este colaborador..."
+            className="w-full h-40 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-primary-500 focus:ring-primary-500 focus:bg-white dark:focus:bg-gray-600 transition-colors py-2.5 px-3 text-sm resize-none"
+          />
         </motion.div>
       )}
 
@@ -732,8 +1337,8 @@ const NineBoxMatrix = () => {
           className="bg-naue-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-md dark:shadow-lg border border-naue-border-gray dark:border-gray-700 p-16 text-center"
         >
           <div className="max-w-md mx-auto">
-            <div className="mx-auto flex items-center justify-center h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-gradient-to-br from-green-50 to-gray-50 dark:from-green-900/30 dark:to-gray-900/30 mb-4 sm:mb-6">
-              <Grid3x3 className="h-8 w-8 sm:h-10 sm:w-10 text-green-800 dark:text-green-700" />
+            <div className="mx-auto flex items-center justify-center h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-gradient-to-br from-primary-50 to-gray-50 dark:from-primary-900/30 dark:to-gray-900/30 mb-4 sm:mb-6">
+              <Grid3x3 className="h-8 w-8 sm:h-10 sm:w-10 text-primary-800 dark:text-primary-700" />
             </div>
             <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
               Nenhum colaborador selecionado
@@ -767,6 +1372,22 @@ const NineBoxMatrix = () => {
             </p>
           </div>
         </motion.div>
+      )}
+
+      {/* Modal de Gestão Salarial */}
+      {showSalaryModal && selectedEmp && (
+        <UserSalaryAssignment
+          user={selectedEmp}
+          isOpen={showSalaryModal}
+          onClose={() => setShowSalaryModal(false)}
+          onUpdate={async () => {
+            // Recarregar dados dos colaboradores e do dashboard
+            await reloadEmployees();
+            if (currentCycle?.id) {
+              await loadDashboard(currentCycle.id);
+            }
+          }}
+        />
       )}
     </div>
   );

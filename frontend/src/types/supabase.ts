@@ -325,6 +325,8 @@ export interface UserWithDetails extends User {
   track_position?: {
     id: string
     base_salary: number
+    custom_level_percentages?: Record<string, number> | null
+    track?: { id: string; name: string; code: string | null }
     position: { id: string; name: string; code: string | null }
     class: { id: string; name: string; code: string }
   }

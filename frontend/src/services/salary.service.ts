@@ -18,6 +18,7 @@ export interface JobPosition {
   code?: string;
   description?: string;
   is_multifunctional: boolean;
+  can_view_people_committee: boolean;
   active: boolean;
   created_at: string;
   updated_at: string;
@@ -62,21 +63,6 @@ export interface TrackPosition {
   class?: SalaryClass;
 }
 
-export interface ProgressionRule {
-  id: string;
-  from_position_id: string;
-  to_position_id: string;
-  progression_type: 'horizontal' | 'vertical' | 'merit';
-  min_time_months?: number;
-  performance_requirement?: number;
-  additional_requirements?: Record<string, any>;
-  active: boolean;
-  created_at: string;
-  updated_at: string;
-  from_position?: TrackPosition;
-  to_position?: TrackPosition;
-}
-
 export interface ProgressionHistory {
   id: string;
   user_id: string;
@@ -86,7 +72,7 @@ export interface ProgressionHistory {
   to_salary_level_id: string;
   from_salary?: number;
   to_salary: number;
-  progression_type: 'horizontal' | 'vertical' | 'merit';
+  progression_type: 'horizontal' | 'vertical';
   progression_date: string;
   reason?: string;
   approved_by?: string;
@@ -115,10 +101,24 @@ export interface UserSalaryInfo {
   track_position_id?: string;
 }
 
+// Interface para verificação de permissão do Comitê de Gente
+export interface PeopleCommitteePermission {
+  canView: boolean;
+  positionName?: string;
+}
+
 class SalaryService {
   // Método auxiliar para processar respostas da API
   private processResponse<T>(response: any): T {
-    // Se a resposta tem data.data
+    // Se a resposta é nula ou undefined
+    if (response === null || response === undefined) {
+      return response;
+    }
+    // Se a resposta tem success e data (formato padrão do backend)
+    if (response.success !== undefined && response.data !== undefined) {
+      return response.data;
+    }
+    // Se a resposta tem data.data (duplo encapsulamento)
     if (response?.data?.data !== undefined) {
       return response.data.data;
     }
@@ -137,13 +137,13 @@ class SalaryService {
       return this.processResponse<T>(response);
     } catch (error: any) {
       console.error('Erro na requisição:', error);
-      
+
       // Se for erro de autenticação
       if (error.response?.status === 401) {
         // Redirecionar para login ou renovar token
         window.location.href = '/login';
       }
-      
+
       throw error;
     }
   }
@@ -235,15 +235,15 @@ class SalaryService {
 
   async createTrack(data: Partial<CareerTrack>): Promise<CareerTrack> {
     console.log('SalaryService.createTrack - Enviando dados:', data);
-    
+
     try {
       const response = await api.post('/salary/tracks', data);
       console.log('SalaryService.createTrack - Resposta recebida:', response);
-      
+
       return this.processResponse<CareerTrack>(response);
     } catch (error: any) {
       console.error('SalaryService.createTrack - Erro:', error);
-      
+
       // Adicionar mais informações ao erro
       if (error.response) {
         console.error('Detalhes do erro:', {
@@ -252,7 +252,7 @@ class SalaryService {
           headers: error.response.headers
         });
       }
-      
+
       throw error;
     }
   }
@@ -290,41 +290,16 @@ class SalaryService {
     return this.handleRequest<void>(api.delete(`/salary/track-positions/${id}`));
   }
 
-  // ===== REGRAS DE PROGRESSÃO =====
-  async getProgressionRules(): Promise<ProgressionRule[]> {
-    return this.handleRequest<ProgressionRule[]>(api.get('/salary/progression-rules'));
-  }
-
-  async getProgressionRuleById(id: string): Promise<ProgressionRule> {
-    return this.handleRequest<ProgressionRule>(api.get(`/salary/progression-rules/${id}`));
-  }
-
-  async getRulesByFromPosition(positionId: string): Promise<ProgressionRule[]> {
-    return this.handleRequest<ProgressionRule[]>(api.get(`/salary/progression-rules/from/${positionId}`));
-  }
-
-  async createProgressionRule(data: Partial<ProgressionRule>): Promise<ProgressionRule> {
-    return this.handleRequest<ProgressionRule>(api.post('/salary/progression-rules', data));
-  }
-
-  async updateProgressionRule(id: string, data: Partial<ProgressionRule>): Promise<ProgressionRule> {
-    return this.handleRequest<ProgressionRule>(api.put(`/salary/progression-rules/${id}`, data));
-  }
-
-  async deleteProgressionRule(id: string): Promise<void> {
-    return this.handleRequest<void>(api.delete(`/salary/progression-rules/${id}`));
-  }
-
   // ===== ATRIBUIÇÃO E PROGRESSÃO =====
   async assignUserToTrack(
-    userId: string, 
-    trackPositionId: string, 
+    userId: string,
+    trackPositionId: string,
     salaryLevelId: string
   ): Promise<any> {
     return this.handleRequest<any>(
       api.put(`/salary/users/${userId}/assign-track`, {
-        track_position_id: trackPositionId,
-        salary_level_id: salaryLevelId
+        trackPositionId,
+        salaryLevelId
       })
     );
   }
@@ -332,7 +307,7 @@ class SalaryService {
   async updateUserSalaryLevel(userId: string, salaryLevelId: string): Promise<any> {
     return this.handleRequest<any>(
       api.put(`/salary/users/${userId}/update-level`, {
-        salary_level_id: salaryLevelId
+        salaryLevelId
       })
     );
   }
@@ -341,14 +316,10 @@ class SalaryService {
     return this.handleRequest<UserSalaryInfo>(api.get(`/salary/users/${userId}/salary-info`));
   }
 
-  async getUserPossibleProgressions(userId: string): Promise<any[]> {
-    return this.handleRequest<any[]>(api.get(`/salary/users/${userId}/possible-progressions`));
-  }
-
   async progressUser(userId: string, data: {
     toTrackPositionId: string;
     toSalaryLevelId: string;
-    progressionType: 'horizontal' | 'vertical' | 'merit';
+    progressionType: 'horizontal' | 'vertical';
     reason?: string;
   }): Promise<ProgressionHistory> {
     return this.handleRequest<ProgressionHistory>(
@@ -390,8 +361,8 @@ class SalaryService {
       calculatedSalary: number;
     }>(
       api.post('/salary/calculate', {
-        track_position_id: trackPositionId,
-        salary_level_id: salaryLevelId
+        trackPositionId,
+        salaryLevelId
       })
     );
   }
@@ -446,6 +417,17 @@ class SalaryService {
   }
 
   // ===== MÉTODOS AUXILIARES =====
+
+  // Verificar se o usuário pode visualizar o Comitê de Gente
+  async checkPeopleCommitteePermission(userId: string): Promise<PeopleCommitteePermission> {
+    try {
+      const response = await api.get(`/salary/users/${userId}/people-committee-permission`);
+      return this.processResponse<PeopleCommitteePermission>(response);
+    } catch (error) {
+      console.error('Erro ao verificar permissão do Comitê de Gente:', error);
+      return { canView: false };
+    }
+  }
 
   // Verificar se o sistema de salários está configurado
   async checkSystemStatus(): Promise<{

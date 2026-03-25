@@ -10,9 +10,14 @@ router.use(authenticateToken as any);
 router.get('/', userController.getUsers);
 router.get('/:id', userController.getUserById);
 router.post('/', userController.createUser);
-router.put('/:id', userController.updateUser as any);
+router.put('/:id', userController.updateUser);
 router.delete('/:id', userController.deleteUser);
 router.get('/leader/:leaderId/subordinates', userController.getSubordinates);
 router.post('/:id/reset-password', userController.resetUserPassword);
+router.get('/check-email/:email', userController.checkEmailExists);
+router.post('/:id/teams', userController.addUserToTeams);
+
+// Rota de migração para corrigir current_track_position_id
+router.post('/migrate/fix-track-positions', userController.migrateTrackPositions);
 
 export default router;

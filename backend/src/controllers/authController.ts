@@ -7,16 +7,16 @@ export const authController = {
   async login(req: Request<{}, {}, LoginRequest>, res: Response, next: NextFunction) {
     try {
       const { email, password } = req.body;
-      
+
       if (!email || !password) {
         return res.status(400).json({
           success: false,
           error: 'Email e senha são obrigatórios'
         });
       }
-      
+
       const result = await authService.login(email, password);
-      
+
       // Estrutura de resposta esperada pelo frontend
       res.json({
         success: true,
@@ -29,7 +29,7 @@ export const authController = {
       });
     } catch (error: any) {
       console.error('Login error:', error);
-      
+
       // Enviar resposta de erro estruturada
       if (error.statusCode === 401) {
         return res.status(401).json({
@@ -37,7 +37,7 @@ export const authController = {
           error: 'Email ou senha inválidos'
         });
       }
-      
+
       next(error);
     }
   },
@@ -58,16 +58,16 @@ export const authController = {
     try {
       const authReq = req as AuthRequest;
       const userId = authReq.user?.id;
-      
+
       if (!userId) {
         return res.status(401).json({
           success: false,
           error: 'User not authenticated'
         });
       }
-      
+
       const profile = await authService.getProfile(userId);
-      
+
       res.json({
         success: true,
         data: profile

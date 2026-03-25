@@ -21,7 +21,7 @@ const Button = ({
   className = '',
   icon,
 }: ButtonProps) => {
-  const baseClasses = 'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 hover:-translate-y-0.5 hover:shadow-md';
+  const baseClasses = 'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 hover:-translate-y-0.5 hover:shadow-md tracking-wide';
   
   const variantClasses = {
     primary: 'bg-primary-900 hover:bg-primary-900 text-white focus:ring-primary-500',

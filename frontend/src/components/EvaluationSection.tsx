@@ -30,6 +30,7 @@ interface EvaluationSectionProps {
   sectionIndex: number;
   calculateScores: () => { technical: number; behavioral: number; organizational: number; final: number; }; // Adjusted return type
   isSaving: boolean;
+  readOnly?: boolean;
 }
 
 const EvaluationSection: React.FC<EvaluationSectionProps> = ({
@@ -38,6 +39,7 @@ const EvaluationSection: React.FC<EvaluationSectionProps> = ({
   sectionIndex,
   calculateScores,
   isSaving,
+  readOnly = false,
 }) => {
   const IconComponent = section.icon;
   const sectionProgress = (section.items.filter(item => item.score !== undefined).length / section.items.length) * 100;
@@ -100,7 +102,7 @@ const EvaluationSection: React.FC<EvaluationSectionProps> = ({
               <IconComponent className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
             </div>
             <div className="text-left min-w-0 flex-1">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-100 flex flex-col sm:flex-row sm:items-center">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-100 flex flex-col sm:flex-row sm:items-center tracking-wide">
                 <span className="truncate">{section.title}</span>
                 <span className={`mt-1 sm:mt-0 sm:ml-3 text-xs font-medium px-2 py-1 rounded-full ${section.bgColor} ${section.darkBgColor} text-gray-700 dark:text-gray-200 flex-shrink-0`}>
                   Peso {section.weight}%
@@ -164,11 +166,14 @@ const EvaluationSection: React.FC<EvaluationSectionProps> = ({
                       return (
                         <button
                           key={rating}
-                          onClick={() => handleScoreChange(section.id, item.id, rating)}
+                          onClick={() => !readOnly && handleScoreChange(section.id, item.id, rating)}
+                          disabled={readOnly}
                           className={`py-3 sm:py-4 px-2 sm:px-4 rounded-lg border transition-all duration-200 ${
                             item.score === rating
                               ? `${ratingInfo.color} ${ratingInfo.darkColor} text-white border-transparent shadow-lg transform scale-105`
-                              : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200'
+                              : readOnly
+                                ? 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                           }`}
                         >
                           <div className="text-center">

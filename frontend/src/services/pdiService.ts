@@ -17,7 +17,7 @@ export const pdiService = {
       // Determinar URL base
       const apiUrl = import.meta.env.VITE_API_URL ||
         (window.location.hostname.includes('vercel.app')
-          ? 'https://avaliacao-performance-naue.onrender.com/api'
+          ? 'https://avaliacao-performance-top.onrender.com/api'
           : '/api');
 
       // Verificar a rota correta
@@ -84,7 +84,7 @@ export const pdiService = {
       // Determinar URL base
       const apiUrl = import.meta.env.VITE_API_URL ||
         (window.location.hostname.includes('vercel.app')
-          ? 'https://avaliacao-performance-naue.onrender.com/api'
+          ? 'https://avaliacao-performance-top.onrender.com/api'
           : '/api');
 
       const url = `${apiUrl}/pdi/${employeeId}`;
@@ -139,7 +139,7 @@ export const pdiService = {
       if (result && result.success !== undefined) {
         return result.data;
       }
-      
+
       // Caso contrário, retorna o resultado diretamente
       return result;
     } catch (error: any) {
@@ -154,7 +154,7 @@ export const pdiService = {
       // Determinar URL base
       const apiUrl = import.meta.env.VITE_API_URL ||
         (window.location.hostname.includes('vercel.app')
-          ? 'https://avaliacao-performance-naue.onrender.com/api'
+          ? 'https://avaliacao-performance-top.onrender.com/api'
           : '/api');
 
       const response = await fetch(`${apiUrl}/pdi/cycle/${cycleId}`, {
@@ -273,7 +273,7 @@ export const pdiService = {
     if (!apiData) {
       return null;
     }
-    
+
     const pdiData = {
       id: apiData.id,
       colaboradorId: apiData.employee_id,
@@ -313,32 +313,32 @@ export const pdiService = {
             break;
         }
       });
-    } 
+    }
     // Se não tem items, tentar reconstruir dos campos goals/actions (formato antigo)
     else if (apiData.goals && apiData.actions) {
       apiData.goals.forEach((goal: string, index: number) => {
         const action = apiData.actions[index] || '';
         const resource = apiData.resources?.[index] || '';
-        
+
         // Extrair prazo da string
         let prazo: 'curto' | 'medio' | 'longo' = 'curto';
         if (goal.startsWith('Curto Prazo')) prazo = 'curto';
         else if (goal.startsWith('Médio Prazo')) prazo = 'medio';
         else if (goal.startsWith('Longo Prazo')) prazo = 'longo';
-        
+
         // Extrair competência e resultados esperados
         const goalParts = goal.replace(/^(Curto|Médio|Longo) Prazo - /, '').split(': ');
         const competencia = goalParts[0] || '';
         const resultadosEsperados = goalParts[1] || '';
-        
+
         // Extrair como desenvolver e calendarização
         const actionParts = action.replace(/^(Curto|Médio|Longo) Prazo - /, '').match(/(.+) \(Prazo: (.+)\)/);
         const comoDesenvolver = actionParts?.[1] || action.replace(/^(Curto|Médio|Longo) Prazo - /, '');
         const calendarizacao = actionParts?.[2] || 'A definir';
-        
+
         // Extrair observação
         const observacao = resource.replace(/^(Curto|Médio|Longo) Prazo - /, '');
-        
+
         const item = {
           id: `item-${index}`,
           competencia,
@@ -348,7 +348,7 @@ export const pdiService = {
           status: '1',
           observacao
         };
-        
+
         switch (prazo) {
           case 'curto':
             pdiData.curtosPrazos.push(item);

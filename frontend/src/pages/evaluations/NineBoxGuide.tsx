@@ -54,10 +54,10 @@ const NineBoxGuide = () => {
       performance: 'médio',
       potential: 'alto',
       icon: TrendingUp,
-      bgColor: 'bg-green-50 dark:bg-green-900/20',
-      borderColor: 'border-green-300 dark:border-green-700',
-      textColor: 'text-green-700 dark:text-green-300',
-      gradient: 'from-green-400 to-green-600 dark:from-green-600 dark:to-green-800',
+      bgColor: 'bg-emerald-50 dark:bg-emerald-900/20',
+      borderColor: 'border-emerald-300 dark:border-emerald-700',
+      textColor: 'text-emerald-700 dark:text-emerald-300',
+      gradient: 'from-emerald-400 to-emerald-600 dark:from-emerald-600 dark:to-emerald-800',
       details: {
         descricao: 'Atende e muitas vezes excede expectativas. Potencial para mudanças na carreira.',
         atribuicoes: 'Trabalhos desafiadores e variados a cada 12-24 meses com aumento de responsabilidades',
@@ -75,10 +75,10 @@ const NineBoxGuide = () => {
       performance: 'alto',
       potential: 'alto',
       icon: Rocket,
-      bgColor: 'bg-gradient-to-br from-gray-50 to-green-50 dark:from-gray-900/20 dark:to-green-900/20',
-      borderColor: 'border-gray-300 dark:border-gray-700',
-      textColor: 'text-gray-700 dark:text-gray-300',
-      gradient: 'from-gray-400 to-green-600 dark:from-gray-600 dark:to-green-800',
+      bgColor: 'bg-gradient-to-br from-[#002a20] to-[#001915] dark:from-[#002a20] dark:to-[#001915]',
+      borderColor: 'border-[#003b2b] dark:border-[#002a20]',
+      textColor: 'text-white',
+      gradient: 'from-[#002a20] to-[#001915] dark:from-[#002a20] dark:to-[#001915]',
       details: {
         descricao: 'O melhor que existe. Atua bem em quase tudo. Aprende rápido e é engenhoso.',
         atribuicoes: 'Trabalhos desafiadores a cada 12-24 meses. Atribuições com alto risco e pensamento estratégico',
@@ -139,10 +139,10 @@ const NineBoxGuide = () => {
       performance: 'alto',
       potential: 'médio',
       icon: Award,
-      bgColor: 'bg-teal-50 dark:bg-teal-900/20',
-      borderColor: 'border-teal-300 dark:border-teal-700',
-      textColor: 'text-teal-700 dark:text-teal-300',
-      gradient: 'from-teal-400 to-teal-600 dark:from-teal-600 dark:to-teal-800',
+      bgColor: 'bg-emerald-50 dark:bg-emerald-900/20',
+      borderColor: 'border-emerald-300 dark:border-emerald-700',
+      textColor: 'text-emerald-700 dark:text-emerald-300',
+      gradient: 'from-emerald-400 to-emerald-600 dark:from-emerald-600 dark:to-emerald-800',
       details: {
         descricao: 'Produz resultados excepcionais. Pode ser promovido em múltiplas áreas.',
         atribuicoes: 'Gerenciar equipes interfuncionais. Atuar como consultor interno',
@@ -279,7 +279,7 @@ const NineBoxGuide = () => {
                       className={`
                         ${box.bgColor} ${box.borderColor} border-2 p-3 sm:p-4 cursor-pointer
                         hover:shadow-md dark:hover:shadow-lg aspect-square
-                        ${selectedBox === box.id ? 'ring-2 ring-offset-1 dark:ring-offset-gray-800 ring-green-800 dark:ring-green-700 shadow-lg dark:shadow-xl' : ''}
+                        ${selectedBox === box.id ? 'ring-2 ring-offset-1 dark:ring-offset-gray-800 ring-primary-800 dark:ring-primary-700 shadow-lg dark:shadow-xl' : ''}
                         rounded-lg
                       `}
                     >
@@ -306,7 +306,7 @@ const NineBoxGuide = () => {
                       className={`
                         ${box.bgColor} ${box.borderColor} border-2 p-3 sm:p-4 cursor-pointer
                         hover:shadow-md dark:hover:shadow-lg aspect-square
-                        ${selectedBox === box.id ? 'ring-2 ring-offset-1 dark:ring-offset-gray-800 ring-green-800 dark:ring-green-700 shadow-lg dark:shadow-xl' : ''}
+                        ${selectedBox === box.id ? 'ring-2 ring-offset-1 dark:ring-offset-gray-800 ring-primary-800 dark:ring-primary-700 shadow-lg dark:shadow-xl' : ''}
                         rounded-lg
                       `}
                     >
@@ -333,7 +333,7 @@ const NineBoxGuide = () => {
                       className={`
                         ${box.bgColor} ${box.borderColor} border-2 p-3 sm:p-4 cursor-pointer
                         hover:shadow-md dark:hover:shadow-lg aspect-square
-                        ${selectedBox === box.id ? 'ring-2 ring-offset-1 dark:ring-offset-gray-800 ring-green-800 dark:ring-green-700 shadow-lg dark:shadow-xl' : ''}
+                        ${selectedBox === box.id ? 'ring-2 ring-offset-1 dark:ring-offset-gray-800 ring-primary-800 dark:ring-primary-700 shadow-lg dark:shadow-xl' : ''}
                         rounded-lg
                       `}
                     >
@@ -352,7 +352,7 @@ const NineBoxGuide = () => {
 
             {/* Footer - performance label */}
             <div className="text-center mt-2">
-              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">performance →</span>
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Performance →</span>
             </div>
           </div>
         </div>

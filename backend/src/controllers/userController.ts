@@ -5,15 +5,19 @@ import { AuthRequest } from '../middleware/auth';
 export const userController = {
   async getUsers(req: Request, res: Response, next: NextFunction) {
     try {
+      const authReq = req as AuthRequest;
       const filters = {
-        active: req.query.active === 'true',
-        is_leader: req.query.is_leader === 'true',
-        is_director: req.query.is_director === 'true',
-        reports_to: req.query.reports_to as string
+        // Só aplica filtro active se o parâmetro foi explicitamente enviado
+        active: req.query.active !== undefined ? req.query.active === 'true' : undefined,
+        is_leader: req.query.is_leader === 'true' ? true : undefined,
+        is_director: req.query.is_director === 'true' ? true : undefined,
+        is_leader_or_director: req.query.is_leader_or_director === 'true' ? true : undefined,
+        reports_to: req.query.reports_to as string,
+        currentUserEmail: authReq.user?.email
       };
 
       const users = await userService.getUsers(filters);
-      
+
       res.json({
         success: true,
         data: users
@@ -72,11 +76,11 @@ export const userController = {
     }
   },
 
-  async updateUser(req: AuthRequest, res: Response, next: NextFunction) {
+  async updateUser(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const user = await userService.updateUser(id, req.body, req.user);
-
+      const user = await userService.updateUser(id, req.body);
+      
       res.json({
         success: true,
         data: user
@@ -102,8 +106,9 @@ export const userController = {
 
   async getSubordinates(req: Request, res: Response, next: NextFunction) {
     try {
+      const authReq = req as AuthRequest;
       const { leaderId } = req.params;
-      const subordinates = await userService.getSubordinates(leaderId);
+      const subordinates = await userService.getSubordinates(leaderId, authReq.user?.email);
 
       res.json({
         success: true,
@@ -131,6 +136,65 @@ export const userController = {
       res.json({
         success: true,
         message: 'Senha atualizada com sucesso'
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async checkEmailExists(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { email } = req.params;
+
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          error: 'Email é obrigatório'
+        });
+      }
+
+      const exists = await userService.checkEmailExists(email);
+
+      res.json({
+        success: true,
+        data: { exists }
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async addUserToTeams(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { teamIds } = req.body;
+
+      if (!teamIds || !Array.isArray(teamIds)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Lista de IDs de times é obrigatória'
+        });
+      }
+
+      await userService.addUserToTeams(id, teamIds);
+
+      res.json({
+        success: true,
+        message: 'Usuário adicionado aos times com sucesso'
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // Migração: corrigir current_track_position_id dos usuários
+  async migrateTrackPositions(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await userService.migrateTrackPositions();
+
+      res.json({
+        success: true,
+        ...result
       });
     } catch (error) {
       next(error);

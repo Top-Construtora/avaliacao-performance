@@ -12,6 +12,7 @@ import { useAuth } from '../../context/AuthContext';
 import { RoleGuard } from '../../components/RoleGuard';
 import { salaryService, CareerTrack, JobPosition, SalaryClass, TrackPosition, SalaryLevel } from '../../services/salary.service';
 import { departmentsService } from '../../services/departments.service';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
 interface PositionFormData {
   position_id: string;
@@ -31,6 +32,7 @@ interface NewPositionData {
   code: string;
   description: string;
   is_multifunctional: boolean;
+  can_view_people_committee: boolean;
 }
 
 interface LevelSalary {
@@ -79,7 +81,8 @@ const TrackPositionsPage = () => {
     name: '',
     code: '',
     description: '',
-    is_multifunctional: false
+    is_multifunctional: false,
+    can_view_people_committee: false
   });
 
   // Estado para porcentagens editáveis dos níveis
@@ -149,7 +152,8 @@ const TrackPositionsPage = () => {
       name: '',
       code: '',
       description: '',
-      is_multifunctional: false
+      is_multifunctional: false,
+      can_view_people_committee: false
     });
     setSelectedPosition(null);
     setShowNewPositionForm(false);
@@ -246,6 +250,7 @@ const TrackPositionsPage = () => {
           code: newPositionData.code || newPositionData.name.toUpperCase().replace(/\s+/g, ''),
           description: newPositionData.description,
           is_multifunctional: newPositionData.is_multifunctional,
+          can_view_people_committee: newPositionData.can_view_people_committee,
           active: true
         });
 
@@ -433,14 +438,7 @@ const TrackPositionsPage = () => {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-800 dark:border-green-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Carregando...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (!track) {
@@ -474,7 +472,7 @@ const TrackPositionsPage = () => {
                 <ArrowLeft className="h-5 w-5 text-gray-600 dark:text-gray-400" />
               </button>
               <div className="flex-1">
-                <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-3">
+                <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-3 tracking-wide">
                   <GitBranch className="h-7 w-7 text-green-800 dark:text-green-600" />
                   {track.name}
                 </h1>
@@ -597,7 +595,7 @@ const TrackPositionsPage = () => {
                 })}
               </div>
             ) : (
-              <div className="text-center py-10 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
+              <div className="text-center py-10 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
                 <Briefcase className="h-12 w-12 text-green-600 dark:text-green-500 mx-auto mb-4" />
                 <p className="text-gray-500 dark:text-gray-400 font-medium">
                   Nenhum cargo adicionado a esta trilha ainda.
@@ -680,7 +678,7 @@ const TrackPositionsPage = () => {
                           <select
                             value={formData.position_id}
                             onChange={(e) => setFormData({ ...formData, position_id: e.target.value })}
-                            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100"
+                            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg dark:bg-gray-700 dark:text-gray-100"
                             disabled={!!selectedPosition}
                           >
                             <option value="">Selecione um cargo existente</option>
@@ -713,7 +711,7 @@ const TrackPositionsPage = () => {
                         <select
                           value={formData.class_id}
                           onChange={(e) => setFormData({ ...formData, class_id: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg dark:bg-gray-700 dark:text-gray-100"
                         >
                           <option value="">Selecione uma classe</option>
                           {classes.map(cls => (
@@ -736,7 +734,7 @@ const TrackPositionsPage = () => {
                             type="text"
                             value={salaryInput}
                             onChange={handleSalaryChange}
-                            className="w-full pl-12 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100"
+                            className="w-full pl-12 pr-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg dark:bg-gray-700 dark:text-gray-100"
                             placeholder="0,00"
                           />
                         </div>
@@ -781,7 +779,7 @@ const TrackPositionsPage = () => {
                                             [level.id]: newValue
                                           });
                                         }}
-                                        className="w-full pl-2 pr-7 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-800 dark:text-gray-100"
+                                        className="w-full pl-2 pr-7 py-1.5 text-sm border border-gray-300 dark:border-gray-700 rounded dark:bg-gray-800 dark:text-gray-100"
                                         placeholder="0"
                                         step="0.5"
                                         min="0"
@@ -841,7 +839,7 @@ const TrackPositionsPage = () => {
                           type="text"
                           value={newPositionData.name}
                           onChange={(e) => setNewPositionData({ ...newPositionData, name: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg dark:bg-gray-700 dark:text-gray-100"
                           placeholder="Ex: Analista de Sistemas"
                           autoFocus
                         />
@@ -854,7 +852,7 @@ const TrackPositionsPage = () => {
                         <textarea
                           value={newPositionData.description}
                           onChange={(e) => setNewPositionData({ ...newPositionData, description: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg dark:bg-gray-700 dark:text-gray-100"
                           rows={2}
                           placeholder="Descrição do cargo"
                         />
@@ -874,6 +872,23 @@ const TrackPositionsPage = () => {
                         </label>
                       </div>
 
+                      <div className="flex items-center">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={newPositionData.can_view_people_committee}
+                            onChange={(e) => setNewPositionData({ ...newPositionData, can_view_people_committee: e.target.checked })}
+                            className="rounded border-gray-300"
+                          />
+                          <span className="text-sm font-medium text-naue-black dark:text-gray-300 font-medium">
+                            Pode visualizar Comitê de Gente
+                          </span>
+                        </label>
+                        <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                          (permite ver Nine Box dos liderados)
+                        </span>
+                      </div>
+
                       <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
                         <h3 className="text-sm font-medium text-naue-black dark:text-gray-300 font-medium mb-3">
                           Configuração na Trilha
@@ -887,7 +902,7 @@ const TrackPositionsPage = () => {
                             <select
                               value={formData.class_id}
                               onChange={(e) => setFormData({ ...formData, class_id: e.target.value })}
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100"
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg dark:bg-gray-700 dark:text-gray-100"
                             >
                               <option value="">Selecione uma classe</option>
                               {classes.map(cls => (
@@ -910,7 +925,7 @@ const TrackPositionsPage = () => {
                                 type="text"
                                 value={salaryInput}
                                 onChange={handleSalaryChange}
-                                className="w-full pl-12 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100"
+                                className="w-full pl-12 pr-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg dark:bg-gray-700 dark:text-gray-100"
                                 placeholder="0,00"
                               />
                             </div>
@@ -952,7 +967,7 @@ const TrackPositionsPage = () => {
                                                 [level.id]: newValue
                                               });
                                             }}
-                                            className="w-full pl-2 pr-7 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-800 dark:text-gray-100"
+                                            className="w-full pl-2 pr-7 py-1.5 text-sm border border-gray-300 dark:border-gray-700 rounded dark:bg-gray-800 dark:text-gray-100"
                                             placeholder="0"
                                             step="0.5"
                                             min="0"

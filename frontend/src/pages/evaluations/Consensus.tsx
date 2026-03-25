@@ -7,6 +7,7 @@ import Button from '../../components/Button';
 import { useEvaluation } from '../../hooks/useEvaluation';
 import { pdiService } from '../../services/pdiService';
 import { evaluationService } from '../../services/evaluation.service';
+import { userService } from '../../services/user.service';
 import PotentialAndPDI from '../../components/PotentialAndPDI';
 import PDIViewer from '../../components/PDIViewer';
 import { UserWithDetails } from '../../types/supabase';
@@ -206,38 +207,35 @@ const Consensus = () => {
 
   const categoryConfig = {
     'Técnica': {
-      color: 'text-green-800 dark:text-green-700',
-      bgColor: 'bg-green-50 dark:bg-green-900/20',
-      borderColor: 'border-green-200 dark:border-green-700',
-      gradient: 'from-green-800 to-green-900 dark:from-green-800 dark:to-green-900'
+      color: 'text-primary-600 dark:text-primary-400',
+      bgColor: 'bg-primary-50 dark:bg-primary-600/20',
+      borderColor: 'border-primary-200 dark:border-primary-700',
+      gradient: 'from-primary-500 to-primary-600 dark:from-primary-700 dark:to-primary-800'
     },
     'Comportamental': {
       color: 'text-gray-600 dark:text-gray-400',
       bgColor: 'bg-gray-50 dark:bg-gray-900/20',
       borderColor: 'border-gray-200 dark:border-gray-700',
-      gradient: 'from-gray-600 to-gray-700 dark:from-gray-600 dark:to-gray-700'
+      gradient: 'from-gray-500 to-gray-600 dark:from-gray-600 dark:to-gray-700'
     },
     'Organizacional': {
       color: 'text-stone-700 dark:text-stone-600',
       bgColor: 'bg-stone-50 dark:bg-stone-900/20',
       borderColor: 'border-stone-200 dark:border-stone-700',
-      gradient: 'from-stone-700 to-stone-800 dark:from-stone-700 dark:to-stone-800'
+      gradient: 'from-stone-500 to-stone-600 dark:from-stone-700 dark:to-stone-800'
     }
   };
 
   const loadPdiForEmployee = useCallback(async (employeeId: string) => {
     try {
       const employeeProfile = employees.find(emp => emp.id === employeeId);
-      console.log('Carregando PDI para colaborador:', employeeId, employeeProfile?.name);
-      
+
       // Tentar carregar o PDI, mas sem mostrar erro se não existir
       try {
         const pdi = await pdiService.getPDI(employeeId);
-        console.log('PDI retornado da API:', pdi);
-        
+
         if (pdi) {
           const transformedPDI = pdiService.transformPDIDataFromAPI(pdi);
-          console.log('PDI transformado:', transformedPDI);
           setPdiData({
             ...transformedPDI,
             colaborador: employeeProfile?.name || transformedPDI.colaborador,
@@ -269,7 +267,6 @@ const Consensus = () => {
         }
       } catch (pdiError: any) {
         // Se o erro for 404 ou similar, apenas configurar um PDI vazio
-        console.log('PDI não encontrado para o colaborador, configurando novo PDI');
         setPdiData({
           colaboradorId: employeeId,
           colaborador: employeeProfile?.name || '',
@@ -313,6 +310,21 @@ const Consensus = () => {
 
     setLoading(true);
     try {
+      // Verificar sessão antes de salvar PDI
+      console.log('💾 Iniciando salvamento do PDI...');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError || !session) {
+        console.error('❌ Sessão inválida ao tentar salvar PDI:', sessionError);
+        toast.error('Sua sessão expirou. Por favor, faça login novamente.');
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+        return;
+      }
+
+      console.log('✅ Sessão válida, salvando PDI...');
+
       const currentCycle = await evaluationService.getCurrentCycle();
       const pdiParams = pdiService.transformPDIDataForAPI(
         pdiData,
@@ -321,14 +333,34 @@ const Consensus = () => {
       );
 
       await pdiService.savePDI(pdiParams);
+      console.log('✅ PDI salvo com sucesso');
       toast.success('PDI atualizado com sucesso!');
-      
+
       // Recarregar o PDI para mostrar a versão atualizada
       await loadPdiForEmployee(pdiData.colaboradorId);
       setPdiViewMode('view');
-    } catch (error) {
-      console.error('Erro ao salvar PDI na reunião de consenso:', error);
-      toast.error('Erro ao salvar PDI');
+    } catch (error: any) {
+      console.error('❌ Erro ao salvar PDI:', error);
+
+      // Verificar se é erro de timeout
+      if (error?.isTimeout || error?.name === 'AbortError') {
+        toast.error('Tempo limite excedido. O servidor demorou para responder. Tente novamente.', {
+          duration: 5000
+        });
+        console.log('⏱️ Timeout ao salvar PDI');
+      }
+      // Verificar se é erro de autenticação
+      else if (error?.message?.includes('JWT') ||
+          error?.message?.includes('session') ||
+          error?.message?.includes('expired') ||
+          error?.code === 'PGRST301') {
+        toast.error('Sua sessão expirou. Por favor, faça login novamente.');
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 3000);
+      } else {
+        toast.error('Erro ao salvar PDI. Tente novamente.');
+      }
     } finally {
       setLoading(false);
     }
@@ -375,17 +407,16 @@ const Consensus = () => {
 
   const fetchLeaders = async () => {
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('active', true)
-        .eq('is_admin', false)
-        .or('is_leader.eq.true,is_director.eq.true')
-        .order('name');
+      // Buscar líderes e diretores ativos via API usando o filtro OR
+      const leadersData = await userService.getUsers({
+        active: true,
+        is_leader_or_director: true
+      });
 
-      if (error) throw error;
+      // Filtrar admins
+      const filteredLeaders = leadersData.filter(leader => !leader.is_admin);
 
-      setLeaders(data || []);
+      setLeaders(filteredLeaders as any[]);
     } catch (error) {
       console.error('Error fetching leaders:', error);
       toast.error('Erro ao carregar líderes');
@@ -394,16 +425,10 @@ const Consensus = () => {
 
   const fetchEmployeesByLeader = async (leaderId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('reports_to', leaderId)
-        .eq('active', true)
-        .order('name');
+      // Buscar subordinados via API (que aplica filtro de usuários restritos)
+      const subordinates = await userService.getSubordinates(leaderId);
 
-      if (error) throw error;
-
-      setEmployees(data || []);
+      setEmployees(subordinates as any[]);
     } catch (error) {
       console.error('Error fetching employees:', error);
       toast.error('Erro ao carregar colaboradores');
@@ -426,7 +451,7 @@ const Consensus = () => {
           .select('id, consensus_score, potential_score, nine_box_position, evaluation_date, notes, self_evaluation_id, leader_evaluation_id')
           .eq('employee_id', selectedEmployeeId)
           .eq('cycle_id', currentCycle.id)
-          .single();
+          .maybeSingle();
 
         existingConsensus = consensusData;
 
@@ -439,7 +464,7 @@ const Consensus = () => {
           setExistingConsensusData(existingConsensus);
           setViewMode('view');
           toast.success(
-            `Visualizando consenso salvo (Nota: ${existingConsensus.consensus_score}, Posição: ${existingConsensus.nine_box_position})`,
+            `Visualizando consenso salvo (Nota: ${parseFloat(existingConsensus.consensus_score).toFixed(3)}, Posição: ${existingConsensus.nine_box_position})`,
             { duration: 4000 }
           );
 
@@ -482,7 +507,7 @@ const Consensus = () => {
         .eq('status', 'completed')
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       // Carregar toolkit da autoavaliação
       if (selfEval && !selfError) {
@@ -507,7 +532,7 @@ const Consensus = () => {
         .eq('status', 'completed')
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       // Inicializar scores com valores padrão
       const selfScoresMap: ScoreMap = {};
@@ -537,44 +562,30 @@ const Consensus = () => {
 
       // Processar scores da autoavaliação (apenas se não houver consenso existente)
       if (!existingConsensus && selfEval && !selfError && selfEval.evaluation_competencies) {
-        console.log('📊 Autoavaliação encontrada - Competências:', selfEval.evaluation_competencies);
-        setSelfEvaluationId(selfEval.id); // Armazenar o ID da autoavaliação
+        setSelfEvaluationId(selfEval.id);
 
         selfEval.evaluation_competencies.forEach((comp: any) => {
-          console.log(`  - ${comp.criterion_name}: ${comp.score} (categoria: ${comp.category})`);
           const criterionId = criterionNameToId[comp.criterion_name.toUpperCase()];
           if (criterionId && comp.score !== null) {
             selfScoresMap[criterionId] = comp.score;
-            console.log(`    ✅ Mapeado para ID: ${criterionId}`);
-          } else if (!criterionId) {
-            console.warn(`    ⚠️ Competência não mapeada: ${comp.criterion_name}`);
           }
         });
       } else if (!existingConsensus) {
-        console.log('❌ Nenhuma autoavaliação encontrada para este colaborador');
         setSelfEvaluationId(null);
       }
 
       // Processar scores da avaliação do líder (apenas se não houver consenso existente)
       if (!existingConsensus && leaderEval && !leaderError && leaderEval.evaluation_competencies) {
-        console.log('👔 Avaliação do Líder encontrada - Competências:', leaderEval.evaluation_competencies);
-        setLeaderEvaluationId(leaderEval.id); // Armazenar o ID da avaliação do líder
-        setPotentialScore(leaderEval.potential_score || null); // Armazenar a nota de potencial
-
-        console.log('📈 Nota de Potencial do Líder:', leaderEval.potential_score);
+        setLeaderEvaluationId(leaderEval.id);
+        setPotentialScore(leaderEval.potential_score || null);
 
         leaderEval.evaluation_competencies.forEach((comp: any) => {
-          console.log(`  - ${comp.criterion_name}: ${comp.score} (categoria: ${comp.category})`);
           const criterionId = criterionNameToId[comp.criterion_name.toUpperCase()];
           if (criterionId && comp.score !== null) {
             leaderScoresMap[criterionId] = comp.score;
-            console.log(`    ✅ Mapeado para ID: ${criterionId}`);
-          } else if (!criterionId) {
-            console.warn(`    ⚠️ Competência não mapeada: ${comp.criterion_name}`);
           }
         });
       } else if (!existingConsensus) {
-        console.log('❌ Nenhuma avaliação do líder encontrada para este colaborador');
         setLeaderEvaluationId(null);
         setPotentialScore(null);
       }
@@ -583,17 +594,44 @@ const Consensus = () => {
       if (!existingConsensus) {
         setSelfScores(selfScoresMap);
         setLeaderScores(leaderScoresMap);
-        setConsensusScores({});
-        setConsensusObservations({});
+
+        // Verificar se há dados salvos no autosave antes de limpar
+        const autoSaveKey = `consensus_autosave_${selectedEmployeeId}`;
+        const savedData = localStorage.getItem(autoSaveKey);
+
+        if (savedData) {
+          try {
+            const parsed = JSON.parse(savedData);
+            const savedTime = new Date(parsed.timestamp);
+            const now = new Date();
+            const hoursDiff = (now.getTime() - savedTime.getTime()) / (1000 * 60 * 60);
+
+            // Se os dados foram salvos há menos de 24 horas, restaurar aqui
+            if (hoursDiff < 24) {
+              console.log('📝 Restaurando dados do auto-save após carregar avaliações...');
+              if (parsed.consensusScores) setConsensusScores(parsed.consensusScores);
+              if (parsed.consensusObservations) setConsensusObservations(parsed.consensusObservations);
+              if (parsed.potentialScore) setPotentialScore(parsed.potentialScore);
+              toast.success('Dados restaurados do último preenchimento', { duration: 3000 });
+            } else {
+              // Remover dados antigos e limpar scores
+              localStorage.removeItem(autoSaveKey);
+              setConsensusScores({});
+              setConsensusObservations({});
+            }
+          } catch (error) {
+            console.error('Erro ao restaurar auto-save:', error);
+            // Em caso de erro, limpar normalmente
+            setConsensusScores({});
+            setConsensusObservations({});
+          }
+        } else {
+          // Não há autosave, limpar normalmente
+          setConsensusScores({});
+          setConsensusObservations({});
+        }
       }
 
-      // Informar se não encontrou avaliações
-      if (selfError && selfError.code === 'PGRST116') {
-        console.log('Nenhuma autoavaliação encontrada');
-      }
-      if (leaderError && leaderError.code === 'PGRST116') {
-        console.log('Nenhuma avaliação do líder encontrada');
-      }
     } catch (error) {
       console.error('Error loading evaluations:', error);
       toast.error('Erro ao carregar avaliações');
@@ -601,6 +639,29 @@ const Consensus = () => {
       setLoading(false);
     }
   }, [selectedEmployeeId, deliveriesCriteria]);
+
+  // Auto-save restore foi movido para dentro de loadEmployeeEvaluations
+  // para evitar race condition onde os dados restaurados eram sobrescritos
+
+  // Auto-save: Salvar dados no localStorage quando houver mudanças
+  useEffect(() => {
+    if (selectedEmployeeId && (Object.keys(consensusScores).length > 0 || Object.keys(consensusObservations).length > 0)) {
+      const autoSaveKey = `consensus_autosave_${selectedEmployeeId}`;
+      const dataToSave = {
+        consensusScores,
+        consensusObservations,
+        potentialScore,
+        timestamp: new Date().toISOString()
+      };
+
+      localStorage.setItem(autoSaveKey, JSON.stringify(dataToSave));
+      console.log('💾 Auto-save realizado:', {
+        numScores: Object.keys(consensusScores).length,
+        numObservations: Object.keys(consensusObservations).length,
+        potentialScore
+      });
+    }
+  }, [consensusScores, consensusObservations, potentialScore, selectedEmployeeId]);
 
   // Load evaluations and PDI when employee is selected
   useEffect(() => {
@@ -653,15 +714,24 @@ const Consensus = () => {
     return Math.round(weightedScore * 10000000000) / 10000000000;
   };
 
+  // Formatar nota com no máximo 3 casas decimais
+  const formatScore = (score: number): string => {
+    if (score === 0) return '0';
+    // Arredondar para 3 casas decimais e remover zeros desnecessários
+    return parseFloat(score.toFixed(3)).toString();
+  };
+
   // Função para calcular o código Nine Box (B1-B9)
   const calculateNineBoxCode = (performance: number, potential: number): string => {
     let perfRow: number;
     let potCol: number;
 
     // Determinar linha baseada na performance (consensus_score)
-    if (performance <= 2) {
+    // Performance: < 2.0 = Baixo, 2.0-2.99 = Médio, >= 3.0 = Alto
+    // Potencial: <= 2.0 = Baixo (inclui 2.0), 2.01-3.0 = Médio, > 3.0 = Alto
+    if (performance < 2) {
       perfRow = 0; // B1, B2, B3
-    } else if (performance <= 3) {
+    } else if (performance < 3) {
       perfRow = 1; // B4, B5, B6
     } else {
       perfRow = 2; // B7, B8, B9
@@ -702,7 +772,23 @@ const Consensus = () => {
     }
 
     setLoading(true);
+
     try {
+      // Verificar se a sessão está válida antes de salvar
+      console.log('💾 Iniciando salvamento do consenso...');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError || !session) {
+        console.error('❌ Sessão inválida ao tentar salvar:', sessionError);
+        toast.error('Sua sessão expirou. Por favor, faça login novamente.');
+        // Aguardar 2 segundos e redirecionar para login
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+        return;
+      }
+
+      console.log('✅ Sessão válida, prosseguindo com salvamento...');
       // Get current cycle
       const currentCycle = await evaluationService.getCurrentCycle();
       if (!currentCycle) {
@@ -716,7 +802,7 @@ const Consensus = () => {
         .select('id')
         .eq('employee_id', selectedEmployeeId)
         .eq('cycle_id', currentCycle.id)
-        .single();
+        .maybeSingle();
 
       if (checkError && checkError.code !== 'PGRST116') {
         // PGRST116 = no rows found, que é o esperado
@@ -733,7 +819,6 @@ const Consensus = () => {
 
       // Calculate nine box position
       const nineBoxPosition = calculateNineBoxCode(finalScore, potentialScore);
-      console.log('📊 Posição Nine Box calculada:', nineBoxPosition, '(Performance:', finalScore, '/ Potencial:', potentialScore, ')');
 
       // Create notes with all observations and scores
       const notesContent = {
@@ -759,8 +844,6 @@ const Consensus = () => {
         evaluation_date: new Date().toISOString().split('T')[0]
       };
 
-      console.log('💾 Salvando consenso com dados:', consensusData);
-
       // Insert consensus evaluation
       const { data: evaluation, error: evalError } = await supabase
         .from('consensus_evaluations')
@@ -769,6 +852,12 @@ const Consensus = () => {
         .single();
 
       if (evalError) throw evalError;
+
+      // Limpar auto-save após salvar com sucesso
+      const autoSaveKey = `consensus_autosave_${selectedEmployeeId}`;
+      localStorage.removeItem(autoSaveKey);
+      console.log('🗑️ Auto-save limpo após salvar consenso');
+      console.log('✅ Consenso salvo com sucesso!');
 
       toast.success('Consenso salvo com sucesso!');
 
@@ -780,9 +869,31 @@ const Consensus = () => {
       setSelfEvaluationId(null);
       setLeaderEvaluationId(null);
       setPotentialScore(null);
-    } catch (error) {
-      console.error('Error saving consensus:', error);
-      toast.error('Erro ao salvar consenso');
+    } catch (error: any) {
+      console.error('❌ Erro ao salvar consenso:', error);
+
+      // Verificar se é erro de timeout
+      if (error?.isTimeout || error?.name === 'AbortError') {
+        toast.error('Tempo limite excedido. O servidor demorou para responder. Seus dados foram preservados. Tente novamente.', {
+          duration: 5000
+        });
+        console.log('⏱️ Timeout ao salvar - dados preservados no autosave');
+      }
+      // Verificar se é erro de autenticação
+      else if (error?.message?.includes('JWT') ||
+          error?.message?.includes('session') ||
+          error?.message?.includes('expired') ||
+          error?.code === 'PGRST301') {
+        toast.error('Sua sessão expirou. Os dados foram salvos localmente. Por favor, faça login novamente.');
+        // Aguardar 3 segundos e redirecionar para login
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 3000);
+      } else {
+        // Erro genérico - dados permanecem no autosave
+        toast.error('Erro ao salvar consenso. Seus dados foram preservados. Tente novamente.');
+        console.log('💾 Dados preservados no autosave devido ao erro');
+      }
     } finally {
       setLoading(false);
     }
@@ -803,8 +914,8 @@ const Consensus = () => {
           : 'transform hover:scale-105 cursor-pointer'
       } ${
         isSelected
-          ? 'bg-gradient-to-br from-green-800 to-green-900 dark:from-green-800 dark:to-green-900 text-white shadow-lg ring-2 ring-green-300 dark:ring-green-600 ring-offset-2 dark:ring-offset-gray-800'
-          : 'bg-white dark:bg-gray-700 text-naue-black dark:text-gray-300 font-medium hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-800 dark:hover:text-green-700 border-2 border-gray-200 dark:border-gray-600 hover:border-green-300 dark:hover:border-green-600 shadow-sm'
+          ? 'bg-gradient-to-br from-gray-600 to-gray-700 dark:from-gray-600 dark:to-gray-700 text-white shadow-lg ring-2 ring-gray-400 dark:ring-gray-500 ring-offset-2 dark:ring-offset-gray-800'
+          : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium hover:bg-gray-50 dark:hover:bg-gray-600 border-2 border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500 shadow-sm'
       }`}
       title={disabled ? `Nota ${score} (somente leitura)` : `Selecionar nota ${score}`}
       aria-label={`Nota ${score} ${isSelected ? '(selecionada)' : ''} ${disabled ? '(somente leitura)' : ''}`}
@@ -822,13 +933,14 @@ const Consensus = () => {
     type: 'self' | 'leader';
     criterionId: string;
   }) => {
+    // Usar sempre o mesmo background cinza escuro para ambos os tipos
+    const bg = 'bg-gradient-to-br from-gray-600 to-gray-700 dark:from-gray-600 dark:to-gray-700';
+
     const config = {
       self: {
-        bg: 'bg-gradient-to-br from-gray-600 to-gray-700 dark:from-gray-600 dark:to-gray-700',
         label: 'Autoavaliação',
       },
       leader: {
-        bg: 'bg-gradient-to-br from-green-800 to-green-900 dark:from-green-800 dark:to-green-900',
         label: 'Avaliação do Líder',
       }
     };
@@ -840,7 +952,7 @@ const Consensus = () => {
       <div className="flex flex-col items-center space-y-4 w-32">
         <h6 className="text-sm font-medium text-naue-black dark:text-gray-300 font-medium text-center h-10 flex items-center justify-center">{config[type].label}</h6>
         <div
-          className={`w-14 h-14 rounded-xl ${hasScore ? config[type].bg : 'bg-gray-300 dark:bg-gray-600'} flex items-center justify-center text-white text-xl font-bold shadow-lg dark:shadow-xl`}
+          className={`w-14 h-14 rounded-xl ${bg} flex items-center justify-center text-white text-xl font-bold shadow-lg dark:shadow-xl`}
           title={`${config[type].label}: ${hasScore ? score : 'Não avaliado'}`}
         >
           {displayScore}
@@ -874,7 +986,7 @@ const Consensus = () => {
           <div className="flex items-center space-x-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100 flex items-center">
-                <Handshake className="h-6 w-6 sm:h-8 sm:w-8 text-green-800 dark:text-green-700 mr-3" />
+                <Handshake className="h-6 w-6 sm:h-8 sm:w-8 text-primary-00 dark:text-primary-300 mr-3" />
                 Reunião de Consenso
               </h1>
               <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm sm:text-base">Definição colaborativa das notas finais</p>
@@ -922,7 +1034,7 @@ const Consensus = () => {
             </label>
             <div className="relative">
               <select
-                className="w-full pl-10 pr-10 py-3 rounded-xl border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm focus:border-green-800 dark:focus:border-green-700 focus:ring-green-800 dark:focus:ring-green-700 appearance-none cursor-pointer"
+                className="w-full pl-10 pr-10 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-primary-500 focus:ring-primary-500 focus:bg-white dark:focus:bg-gray-600 transition-colors py-2.5 px-3 appearance-none cursor-pointer"
                 value={selectedLeaderId}
                 onChange={(e) => setSelectedLeaderId(e.target.value)}
                 disabled={loading}
@@ -950,7 +1062,7 @@ const Consensus = () => {
             </label>
             <div className="relative">
               <select
-                className="w-full pl-10 pr-10 py-3 rounded-xl border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm focus:border-green-800 dark:focus:border-green-700 focus:ring-green-800 dark:focus:ring-green-700 appearance-none cursor-pointer"
+                className="w-full pl-10 pr-10 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-primary-500 focus:ring-primary-500 focus:bg-white dark:focus:bg-gray-600 transition-colors py-2.5 px-3 appearance-none cursor-pointer"
                 value={selectedEmployeeId}
                 onChange={(e) => setSelectedEmployeeId(e.target.value)}
                 disabled={!selectedLeaderId || loading}
@@ -1019,7 +1131,7 @@ const Consensus = () => {
       {/* Loading State */}
       {loading && (
         <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-800 dark:border-green-700"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 dark:border-primary-700"></div>
         </div>
       )}
 
@@ -1042,7 +1154,7 @@ const Consensus = () => {
               <div className="mt-2 flex items-center space-x-4 text-xs text-blue-600 dark:text-blue-400">
                 <span className="flex items-center">
                   <BarChart3 className="h-3 w-3 mr-1" />
-                  Nota Final: <strong className="ml-1">{existingConsensusData?.consensus_score}</strong>
+                  Nota Final: <strong className="ml-1">{existingConsensusData?.consensus_score ? parseFloat(existingConsensusData.consensus_score).toFixed(3) : 'N/A'}</strong>
                 </span>
                 <span className="flex items-center">
                   <Target className="h-3 w-3 mr-1" />
@@ -1065,9 +1177,9 @@ const Consensus = () => {
           animate={{ opacity: 1, y: 0 }}
           className="bg-naue-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-md dark:shadow-lg border border-naue-border-gray dark:border-gray-700 overflow-hidden"
         >
-          <div className="px-4 sm:px-8 py-4 sm:py-6 bg-gradient-to-r from-green-50 via-gray-50 to-stone-50 dark:from-green-900/20 dark:via-gray-900/20 dark:to-stone-900/20 border-b border-gray-200 dark:border-gray-700">
+          <div className="px-4 sm:px-8 py-4 sm:py-6 bg-gradient-to-r from-primary-50 via-gray-50 to-stone-50 dark:from-green-900/20 dark:via-gray-900/20 dark:to-stone-900/20 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center space-x-3">
-              <div className="p-2 sm:p-3 rounded-xl bg-gradient-to-br from-green-800 to-green-900 dark:from-green-800 dark:to-green-900 shadow-md dark:shadow-lg">
+              <div className="p-2 sm:p-3 rounded-xl bg-gradient-to-br from-primary-00 to-primary-600 dark:from-primary-00 dark:to-primary-600 shadow-md dark:shadow-lg">
                 <Briefcase className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
               </div>
               <div>
@@ -1083,15 +1195,15 @@ const Consensus = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Conhecimentos */}
               {employeeToolkit.knowledge.length > 0 && (
-                <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-700">
+                <div className="p-4 bg-primary-50 dark:bg-primary-600/20 rounded-xl border border-primary-200 dark:border-primary-700">
                   <div className="flex items-center space-x-2 mb-3">
-                    <Brain className="h-5 w-5 text-green-800 dark:text-green-700" />
+                    <Brain className="h-5 w-5 text-primary-00 dark:text-primary-300" />
                     <h4 className="font-semibold text-gray-800 dark:text-gray-100 text-sm">Conhecimentos</h4>
                   </div>
                   <ul className="space-y-2">
                     {employeeToolkit.knowledge.map((item, index) => (
                       <li key={index} className="flex items-start space-x-2">
-                        <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-500 mt-0.5 flex-shrink-0" />
+                        <CheckCircle className="h-4 w-4 text-primary-600 dark:text-primary-300 mt-0.5 flex-shrink-0" />
                         <span className="text-sm text-gray-700 dark:text-gray-300">{item}</span>
                       </li>
                     ))}
@@ -1198,7 +1310,7 @@ const Consensus = () => {
                           />
                         </div>
                         {categoryProgress === 100 && (
-                          <CheckCircle className="h-5 w-5 text-green-500 dark:text-green-400" />
+                          <CheckCircle className="h-5 w-5 text-primary-500 dark:text-primary-400" />
                         )}
                       </div>
                     </div>
@@ -1212,7 +1324,7 @@ const Consensus = () => {
                         const consensusScore = consensusScores[criterion.id] || 0;
 
                         return (
-                          <div key={criterion.id} className="p-6 bg-gray-50 dark:bg-gray-700/50 rounded-xl space-y-6 border border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200">
+                          <div key={criterion.id} className="p-6 bg-gray-50 dark:bg-gray-700/50 rounded-xl space-y-6 border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200">
                             <div className="flex flex-col space-y-4">
                               <div className="flex-1">
                                 <h4 className="font-semibold text-gray-800 dark:text-gray-100 text-base">{criterion.name}</h4>
@@ -1221,7 +1333,7 @@ const Consensus = () => {
                               
                               <div className="flex flex-col space-y-6">
                                 {/* Avaliações Auto e Líder */}
-                                <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                                <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
                                   <div className="flex items-center justify-between mb-4">
                                     <h5 className="text-sm font-medium text-naue-black dark:text-gray-300 font-medium flex items-center">
                                       <Sparkles className="h-4 w-4 mr-2 text-gray-500 dark:text-gray-400" />
@@ -1244,14 +1356,14 @@ const Consensus = () => {
                                 </div>
 
                                 {/* Consenso */}
-                                <div className="bg-gradient-to-r from-green-50 to-gray-50 dark:from-green-900/20 dark:to-gray-900/20 rounded-lg p-4 border border-green-200 dark:border-green-700">
+                                <div className="bg-gradient-to-r from-primary-50 to-gray-50 dark:from-green-900/20 dark:to-gray-900/20 rounded-lg p-4 border border-primary-200 dark:border-primary-700">
                                   <div className="flex items-center justify-between mb-4">
                                     <h5 className="text-sm font-medium text-naue-black dark:text-gray-300 font-medium flex items-center">
-                                      <Handshake className="h-4 w-4 mr-2 text-green-800 dark:text-green-700" />
+                                      <Handshake className="h-4 w-4 mr-2 text-primary-00 dark:text-primary-300" />
                                       Nota de Consenso
                                     </h5>
                                     {consensusScore > 0 && (
-                                      <div className="flex items-center space-x-1 text-xs text-green-600 dark:text-green-400">
+                                      <div className="flex items-center space-x-1 text-xs text-primary-600 dark:text-primary-400">
                                         <CheckCircle className="h-3 w-3" />
                                         <span>Definido</span>
                                       </div>
@@ -1279,7 +1391,7 @@ const Consensus = () => {
                                 Observações {viewMode === 'view' && <span className="ml-1 text-xs">(somente leitura)</span>}
                               </label>
                               <textarea
-                                className="w-full px-3 py-2 text-xs sm:text-sm border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-green-800 dark:focus:ring-green-700 focus:border-transparent resize-none transition-all duration-200 placeholder-gray-400 dark:placeholder-gray-500 disabled:opacity-70 disabled:cursor-not-allowed"
+                                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-primary-500 focus:ring-primary-500 focus:bg-white dark:focus:bg-gray-600 transition-colors py-2.5 px-3 text-xs sm:text-sm resize-none disabled:opacity-70 disabled:cursor-not-allowed"
                                 rows={2}
                                 placeholder={viewMode === 'edit' ? "Adicione observações sobre esta competência..." : "Sem observações"}
                                 value={consensusObservations[criterion.id] || ''}
@@ -1396,35 +1508,35 @@ const Consensus = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
-                className="bg-gradient-to-br from-green-50 via-gray-50 to-stone-50 dark:from-gray-800 dark:via-gray-800 dark:to-gray-800 rounded-2xl shadow-sm dark:shadow-lg border border-green-100 dark:border-gray-700 p-4 sm:p-8"
+                className="bg-gradient-to-br from-primary-50 via-gray-50 to-stone-50 dark:from-gray-800 dark:via-gray-800 dark:to-gray-800 rounded-2xl shadow-sm dark:shadow-lg border border-primary-100 dark:border-gray-700 p-4 sm:p-8"
               >
                 <h3 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-100 mb-4 sm:mb-6 flex items-center">
-                  <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 mr-2 text-green-800 dark:text-green-700" />
+                  <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 mr-2 text-primary-00 dark:text-primary-300" />
                   Resumo do Consenso
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                  <div className="bg-white dark:bg-gray-700 p-4 sm:p-6 rounded-xl border border-green-200 dark:border-green-700">
+                  <div className="bg-white dark:bg-gray-700 p-4 sm:p-6 rounded-xl border border-primary-200 dark:border-primary-700">
                     <h4 className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Técnicas</h4>
-                    <p className="text-2xl sm:text-3xl font-bold text-green-800 dark:text-green-700">{calculateCategoryAverage('Técnica')}</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-primary-00 dark:text-primary-300">{formatScore(calculateCategoryAverage('Técnica'))}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Peso 50%</p>
                   </div>
 
                   <div className="bg-white dark:bg-gray-700 p-4 sm:p-6 rounded-xl border border-gray-200 dark:border-gray-700">
                     <h4 className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Comportamentais</h4>
-                    <p className="text-2xl sm:text-3xl font-bold text-gray-600 dark:text-gray-400">{calculateCategoryAverage('Comportamental')}</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-gray-600 dark:text-gray-400">{formatScore(calculateCategoryAverage('Comportamental'))}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Peso 30%</p>
                   </div>
 
                   <div className="bg-white dark:bg-gray-700 p-4 sm:p-6 rounded-xl border border-stone-200 dark:border-stone-700">
                     <h4 className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Organizacionais</h4>
-                    <p className="text-2xl sm:text-3xl font-bold text-stone-700 dark:text-stone-600">{calculateCategoryAverage('Organizacional')}</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-stone-700 dark:text-stone-600">{formatScore(calculateCategoryAverage('Organizacional'))}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Peso 20%</p>
                   </div>
 
-                  <div className="bg-gradient-to-br from-green-800 to-green-900 dark:from-green-800 dark:to-green-900 p-4 sm:p-6 rounded-xl text-white">
-                    <h4 className="text-xs sm:text-sm font-medium text-green-100 dark:text-green-200 mb-1">Nota Final</h4>
-                    <p className="text-2xl sm:text-3xl font-bold">{calculateOverallAverage()}</p>
-                    <p className="text-xs text-green-100 dark:text-green-200 mt-1">Média Ponderada</p>
+                  <div className="bg-gradient-to-br from-gray-600 to-gray-700 dark:from-gray-600 dark:to-gray-700 p-4 sm:p-6 rounded-xl text-white">
+                    <h4 className="text-xs sm:text-sm font-medium text-gray-100 dark:text-gray-200 mb-1">Nota Final</h4>
+                    <p className="text-2xl sm:text-3xl font-bold">{formatScore(calculateOverallAverage())}</p>
+                    <p className="text-xs text-gray-100 dark:text-gray-200 mt-1">Média Ponderada</p>
                   </div>
 
                   {/* Adicionar indicador do PDI */}
@@ -1433,8 +1545,8 @@ const Consensus = () => {
                     <div className="flex items-center space-x-2">
                       {pdiData.curtosPrazos.length + pdiData.mediosPrazos.length + pdiData.longosPrazos.length > 0 ? (
                         <>
-                          <CheckCircle className="h-5 w-5 text-green-500" />
-                          <p className="text-sm font-semibold text-green-600 dark:text-green-400">Definido</p>
+                          <CheckCircle className="h-5 w-5 text-primary-500" />
+                          <p className="text-sm font-semibold text-primary-600 dark:text-primary-400">Definido</p>
                         </>
                       ) : (
                         <>
@@ -1469,8 +1581,8 @@ const Consensus = () => {
                     </>
                   ) : (
                     <>
-                      <CheckCircle className="h-5 w-5 text-green-500 dark:text-green-400" />
-                      <span className="text-green-600 dark:text-green-400 font-medium">
+                      <CheckCircle className="h-5 w-5 text-primary-500 dark:text-primary-400" />
+                      <span className="text-primary-600 dark:text-primary-400 font-medium">
                         Consenso completo!
                       </span>
                     </>
@@ -1502,8 +1614,8 @@ const Consensus = () => {
           className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm dark:shadow-lg border border-gray-100 dark:border-gray-700 p-8 sm:p-16 text-center"
         >
           <div className="max-w-md mx-auto">
-            <div className="mx-auto flex items-center justify-center h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-gradient-to-br from-green-100 to-gray-100 dark:from-green-900/20 dark:to-gray-900/20 mb-6">
-              <Users className="h-8 w-8 sm:h-10 sm:w-10 text-green-800 dark:text-green-700" />
+            <div className="mx-auto flex items-center justify-center h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-gradient-to-br from-primary-100 to-gray-100 dark:from-green-900/20 dark:to-gray-900/20 mb-6">
+              <Users className="h-8 w-8 sm:h-10 sm:w-10 text-primary-00 dark:text-primary-300" />
             </div>
             <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
               Nenhum colaborador selecionado

@@ -2,9 +2,14 @@ import { Router } from 'express';
 import authRoutes from './authRoutes';
 import userRoutes from './userRoutes';
 import departmentRoutes from './departmentRoutes';
+import teamRoutes from './teamRoutes';
 import evaluationRoutes from './evaluationRoutes';
 import salaryRoutes from './salaryRoutes';
 import pdiRoutes from './pdiRoutes';
+import competencyRoutes from './competencyRoutes';
+import interviewRoutes from './interviewRoutes';
+import satisfactionRoutes from './satisfactionRoutes';
+import recruitmentRoutes from './recruitmentRoutes';
 
 const router = Router();
 
@@ -24,9 +29,14 @@ router.use('/auth', authRoutes);
 // Protected routes
 router.use('/users', userRoutes);
 router.use('/departments', departmentRoutes);
+router.use('/teams', teamRoutes);
+router.use('/competencies', competencyRoutes);
 router.use('/evaluations', evaluationRoutes);
 router.use('/salary', salaryRoutes);
 router.use('/pdi', pdiRoutes);
+router.use('/interviews', interviewRoutes);
+router.use('/satisfaction', satisfactionRoutes);
+router.use('/recruitment', recruitmentRoutes);
 
 // Health check
 router.get('/health', (req, res) => {

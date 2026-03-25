@@ -231,6 +231,11 @@ export interface CycleDashboard {
   consensus_performance_score?: number | null;
   consensus_potential_score?: number | null;
   ninebox_position?: string | null; // Posição Nine Box (B1-B9)
+  team_name?: string | null;
+  promoted_potential_quadrant?: string | null;
+  promoted_by?: string | null;
+  promoted_at?: string | null;
+  committee_deliberations?: any | null;
 }
 
 // Dados do Nine Box

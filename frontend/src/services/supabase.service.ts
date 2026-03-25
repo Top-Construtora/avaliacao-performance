@@ -214,8 +214,10 @@ export const usersService = {
               .select(`
                 id,
                 base_salary,
+                custom_level_percentages,
                 position:job_positions(id, name, code),
-                class:salary_classes(id, name, code)
+                class:salary_classes(id, name, code),
+                track:career_tracks(id, name, code)
               `)
               .eq('id', positionIdToUse)
               .single();

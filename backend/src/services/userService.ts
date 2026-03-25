@@ -2,25 +2,47 @@
 import { supabaseAdmin } from '../config/supabase';
 import { ApiError } from '../middleware/errorHandler';
 import { User } from '../types';
+import { filterRestrictedUsers } from '../utils/userFilterUtils';
 
 export const userService = {
   async getUsers(filters?: {
     active?: boolean;
     is_leader?: boolean;
     is_director?: boolean;
+    is_leader_or_director?: boolean;
     reports_to?: string;
+    currentUserEmail?: string;
   }) {
-    let query = supabaseAdmin.from('users').select('*');
+    // Select com relacionamentos para trilha e posição salarial
+    let query = supabaseAdmin.from('users').select(`
+      *,
+      track_position:track_positions!current_track_position_id(
+        id,
+        base_salary,
+        class:salary_classes!class_id(id, code, name),
+        position:job_positions!position_id(id, name),
+        track:career_tracks!track_id(id, name, code)
+      ),
+      salary_level:salary_levels!current_salary_level_id(id, name, percentage)
+    `);
 
     if (filters?.active !== undefined) {
       query = query.eq('active', filters.active);
     }
-    if (filters?.is_leader !== undefined) {
-      query = query.eq('is_leader', filters.is_leader);
+
+    // Se is_leader_or_director for true, buscar usuários que são líderes OU diretores
+    if (filters?.is_leader_or_director === true) {
+      query = query.or('is_leader.eq.true,is_director.eq.true');
+    } else {
+      // Caso contrário, aplicar filtros individuais apenas se explicitamente true
+      if (filters?.is_leader === true) {
+        query = query.eq('is_leader', true);
+      }
+      if (filters?.is_director === true) {
+        query = query.eq('is_director', true);
+      }
     }
-    if (filters?.is_director !== undefined) {
-      query = query.eq('is_director', filters.is_director);
-    }
+
     if (filters?.reports_to) {
       query = query.eq('reports_to', filters.reports_to);
     }
@@ -31,7 +53,10 @@ export const userService = {
       throw new ApiError(500, 'Failed to fetch users');
     }
 
-    return data;
+    // Aplicar filtro de usuários restritos
+    const filteredData = filterRestrictedUsers(filters?.currentUserEmail, data || []);
+
+    return filteredData;
   },
 
   async getUserById(id: string) {
@@ -67,51 +92,10 @@ export const userService = {
     return data;
   },
 
-  async updateUser(id: string, updates: Partial<User>, requestingUser?: any) {
-    // Campos sensíveis que só admins podem modificar
-    const PROTECTED_FIELDS = ['is_admin', 'is_director', 'is_leader', 'id', 'created_at'];
-
-    // Campos que usuários normais podem atualizar em seus próprios perfis
-    const ALLOWED_USER_FIELDS = [
-      'name', 'phone', 'birth_date', 'profile_image', 'position',
-      'contract_type', 'admission_date', 'position_start_date', 'intern_level'
-    ];
-
-    // Verificar se há tentativa de modificar campos protegidos
-    const attemptingProtectedUpdate = PROTECTED_FIELDS.some(field =>
-      updates.hasOwnProperty(field)
-    );
-
-    if (attemptingProtectedUpdate) {
-      // Se não tem usuário requisitante ou não é admin, bloquear
-      if (!requestingUser || !requestingUser.is_admin) {
-        throw new ApiError(
-          403,
-          'Apenas administradores podem modificar roles e campos protegidos'
-        );
-      }
-    }
-
-    // Se não é admin, filtrar campos permitidos
-    let filteredUpdates: any = {};
-
-    if (requestingUser && requestingUser.is_admin) {
-      // Admin pode atualizar qualquer campo (exceto id e created_at)
-      filteredUpdates = { ...updates };
-      delete filteredUpdates.id;
-      delete filteredUpdates.created_at;
-    } else {
-      // Usuário normal: apenas campos da whitelist
-      Object.keys(updates).forEach(key => {
-        if (ALLOWED_USER_FIELDS.includes(key)) {
-          filteredUpdates[key] = (updates as any)[key];
-        }
-      });
-    }
-
-    // Preparar atualizações
+  async updateUser(id: string, updates: Partial<User>) {
+    // Preparar atualizações incluindo novos campos
     const updateData: any = {
-      ...filteredUpdates,
+      ...updates,
       updated_at: new Date().toISOString()
     };
 
@@ -333,7 +317,7 @@ export const userService = {
     }
   },
 
-  async getSubordinates(leaderId: string) {
+  async getSubordinates(leaderId: string, currentUserEmail?: string) {
     const { data, error } = await supabaseAdmin
       .from('users')
       .select('*')
@@ -345,7 +329,10 @@ export const userService = {
       throw new ApiError(500, 'Failed to fetch subordinates');
     }
 
-    return data;
+    // Aplicar filtro de usuários restritos
+    const filteredData = filterRestrictedUsers(currentUserEmail, data || []);
+
+    return filteredData;
   },
 
   // Novos métodos para estatísticas
@@ -383,6 +370,203 @@ export const userService = {
         throw error;
       }
       throw new ApiError(500, error.message || 'Erro ao redefinir senha');
+    }
+  },
+
+  // Verificar se email já existe
+  async checkEmailExists(email: string): Promise<boolean> {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('users')
+        .select('id')
+        .eq('email', email.toLowerCase())
+        .maybeSingle();
+
+      if (error) {
+        console.error('Erro ao verificar email:', error);
+        return false;
+      }
+
+      return !!data;
+    } catch (error) {
+      console.error('Erro ao verificar email:', error);
+      return false;
+    }
+  },
+
+  // Adicionar usuário a múltiplos times
+  async addUserToTeams(userId: string, teamIds: string[]): Promise<void> {
+    try {
+      if (!teamIds || teamIds.length === 0) {
+        return;
+      }
+
+      const teamMembers = teamIds.map(teamId => ({
+        team_id: teamId,
+        user_id: userId,
+      }));
+
+      const { error } = await supabaseAdmin
+        .from('team_members')
+        .insert(teamMembers);
+
+      if (error) {
+        throw new ApiError(500, 'Erro ao adicionar usuário aos times: ' + error.message);
+      }
+    } catch (error: any) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, error.message || 'Erro ao adicionar usuário aos times');
+    }
+  },
+
+  // Migração: corrigir usuários que têm position_id mas não têm current_track_position_id
+  async migrateTrackPositions() {
+    try {
+      // Buscar usuários que têm position_id preenchido mas current_track_position_id está nulo
+      const { data: usersToFix, error: fetchError } = await supabaseAdmin
+        .from('users')
+        .select('id, name, position_id, track_id, current_track_position_id')
+        .not('position_id', 'is', null)
+        .is('current_track_position_id', null);
+
+      if (fetchError) {
+        throw new ApiError(500, 'Erro ao buscar usuários: ' + fetchError.message);
+      }
+
+      if (!usersToFix || usersToFix.length === 0) {
+        return { message: 'Nenhum usuário precisa de correção', fixed: 0 };
+      }
+
+      const results: { userId: string; name: string; status: string; details?: string }[] = [];
+
+      for (const user of usersToFix) {
+        try {
+          // O position_id estava recebendo o ID do track_position erroneamente
+          // Então vamos verificar se esse ID existe na tabela track_positions
+          const { data: trackPosition, error: tpError } = await supabaseAdmin
+            .from('track_positions')
+            .select('id, track_id, position_id, base_salary')
+            .eq('id', user.position_id)
+            .maybeSingle();
+
+          if (tpError) {
+            results.push({
+              userId: user.id,
+              name: user.name,
+              status: 'error',
+              details: 'Erro ao buscar track_position: ' + tpError.message
+            });
+            continue;
+          }
+
+          if (trackPosition) {
+            // O position_id é realmente um track_position_id
+            // Atualizar current_track_position_id com esse valor
+            const { error: updateError } = await supabaseAdmin
+              .from('users')
+              .update({
+                current_track_position_id: trackPosition.id,
+                track_id: trackPosition.track_id, // Garantir que track_id também está correto
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', user.id);
+
+            if (updateError) {
+              results.push({
+                userId: user.id,
+                name: user.name,
+                status: 'error',
+                details: 'Erro ao atualizar: ' + updateError.message
+              });
+            } else {
+              results.push({
+                userId: user.id,
+                name: user.name,
+                status: 'fixed',
+                details: `current_track_position_id definido como ${trackPosition.id}`
+              });
+            }
+          } else {
+            // O position_id não é um track_position válido
+            // Tentar encontrar pelo track_id
+            if (user.track_id) {
+              const { data: possiblePositions, error: ppError } = await supabaseAdmin
+                .from('track_positions')
+                .select('id')
+                .eq('track_id', user.track_id)
+                .order('order_index')
+                .limit(1);
+
+              if (!ppError && possiblePositions && possiblePositions.length > 0) {
+                const { error: updateError } = await supabaseAdmin
+                  .from('users')
+                  .update({
+                    current_track_position_id: possiblePositions[0].id,
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq('id', user.id);
+
+                if (updateError) {
+                  results.push({
+                    userId: user.id,
+                    name: user.name,
+                    status: 'error',
+                    details: 'Erro ao atualizar com primeira posição da trilha: ' + updateError.message
+                  });
+                } else {
+                  results.push({
+                    userId: user.id,
+                    name: user.name,
+                    status: 'fixed_with_default',
+                    details: `Atribuído à primeira posição da trilha: ${possiblePositions[0].id}`
+                  });
+                }
+              } else {
+                results.push({
+                  userId: user.id,
+                  name: user.name,
+                  status: 'skipped',
+                  details: 'position_id inválido e nenhuma posição encontrada na trilha'
+                });
+              }
+            } else {
+              results.push({
+                userId: user.id,
+                name: user.name,
+                status: 'skipped',
+                details: 'position_id inválido e sem track_id definido'
+              });
+            }
+          }
+        } catch (err: any) {
+          results.push({
+            userId: user.id,
+            name: user.name,
+            status: 'error',
+            details: err.message
+          });
+        }
+      }
+
+      const fixed = results.filter(r => r.status === 'fixed' || r.status === 'fixed_with_default').length;
+      const errors = results.filter(r => r.status === 'error').length;
+      const skipped = results.filter(r => r.status === 'skipped').length;
+
+      return {
+        message: `Migração concluída: ${fixed} corrigidos, ${errors} erros, ${skipped} ignorados`,
+        total: usersToFix.length,
+        fixed,
+        errors,
+        skipped,
+        details: results
+      };
+    } catch (error: any) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, error.message || 'Erro na migração');
     }
   }
 };

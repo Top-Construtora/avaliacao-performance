@@ -378,7 +378,7 @@ const CycleManagement: React.FC = () => {
         {cyclesLoading ? (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-8">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-800 dark:border-green-700 mx-auto"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
               <p className="text-gray-500 dark:text-gray-400 mt-4">Carregando ciclos...</p>
             </div>
           </div>
@@ -805,7 +805,7 @@ const CycleManagement: React.FC = () => {
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-800 dark:border-green-700 mx-auto"></div>
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
                   <p className="text-gray-500 dark:text-gray-400 mt-4">Carregando estatísticas...</p>
                 </div>
               )}
