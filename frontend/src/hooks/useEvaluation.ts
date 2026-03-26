@@ -17,7 +17,6 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
-// Define ActionItem and PdiData interfaces here or import them
 interface ActionItem {
   id: string;
   competencia: string;
@@ -44,9 +43,15 @@ interface PdiData {
   dataAtualizacao?: string;
 }
 
+interface DeliveryCriterion {
+  id: string;
+  name: string;
+  description: string;
+  category: 'deliveries';
+  position: number;
+}
 
 interface UseEvaluationReturn {
-  // States
   loading: boolean;
   cyclesLoading: boolean;
   currentCycle: EvaluationCycle | null;
@@ -55,21 +60,15 @@ interface UseEvaluationReturn {
   employees: UserWithDetails[];
   subordinates: UserWithDetails[];
   nineBoxData: NineBoxData[];
-  deliveriesCriteria: any[]; // Competências organizacionais
-
-  // Actions
+  deliveriesCriteria: DeliveryCriterion[];
   loadCurrentCycle: () => Promise<void>;
   loadAllCycles: () => Promise<void>;
   loadDashboard: (cycleId: string) => Promise<void>;
   loadNineBoxData: (cycleId: string) => Promise<void>;
   loadSubordinates: () => Promise<void>;
-  
-  // Cycle management
   createCycle: (cycle: Omit<EvaluationCycle, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   openCycle: (cycleId: string) => Promise<void>;
   closeCycle: (cycleId: string) => Promise<void>;
-  
-  // Evaluations
   saveSelfEvaluation: (data: {
     cycleId: string;
     employeeId: string;
@@ -81,7 +80,6 @@ interface UseEvaluationReturn {
       qualities?: string[];
     };
   }) => Promise<void>;
-  
   saveLeaderEvaluation: (data: {
     cycleId: string;
     employeeId: string;
@@ -101,17 +99,14 @@ interface UseEvaluationReturn {
       timeline?: string;
     };
   }) => Promise<void>;
-
   createConsensus: (data: Partial<ConsensusMeeting>) => Promise<void>;
   completeConsensus: (meetingId: string, performanceScore: number, potentialScore: number, notes: string) => Promise<void>;
-  
-  // Queries
   getEmployeeEvaluations: (cycleId: string, employeeId: string) => Promise<EvaluationExtended[]>;
   getSelfEvaluations: (employeeId: string, cycleId?: string) => Promise<SelfEvaluation[]>;
   getLeaderEvaluations: (employeeId: string, cycleId?: string) => Promise<LeaderEvaluation[]>;
   checkExistingEvaluation: (cycleId: string, employeeId: string, type: 'self' | 'leader') => Promise<boolean>;
   getNineBoxByEmployeeId: (employeeId: string) => NineBoxData | undefined;
-  savePDI: (pdiData: any) => Promise<any>;
+  savePDI: (pdiData: PdiData) => Promise<PdiData>;
   loadPDI: (employeeId: string) => Promise<PdiData | null>;
   reloadEmployees: () => Promise<void>;
 }
@@ -126,16 +121,13 @@ export const useEvaluation = (): UseEvaluationReturn => {
   const [employees, setEmployees] = useState<UserWithDetails[]>([]);
   const [subordinates, setSubordinates] = useState<UserWithDetails[]>([]);
   const [nineBoxData, setNineBoxData] = useState<NineBoxData[]>([]);
-  const [deliveriesCriteria, setDeliveriesCriteria] = useState<any[]>([]);
+  const [deliveriesCriteria, setDeliveriesCriteria] = useState<DeliveryCriterion[]>([]);
 
-  // Load current active cycle
   const loadCurrentCycle = useCallback(async () => {
     try {
       setLoading(true);
       const cycle = await evaluationService.getCurrentCycle();
       setCurrentCycle(cycle);
-      
-      // Se não houver ciclo ativo, tenta carregar todos e verificar se algum está aberto
       if (!cycle) {
         const allCycles = await evaluationService.getAllCycles();
         const activeCycle = allCycles.find(c => c.status === 'open');
@@ -151,7 +143,6 @@ export const useEvaluation = (): UseEvaluationReturn => {
     }
   }, []);
 
-  // Load all cycles
   const loadAllCycles = useCallback(async () => {
     try {
       setCyclesLoading(true);
@@ -166,17 +157,13 @@ export const useEvaluation = (): UseEvaluationReturn => {
     }
   }, []);
 
-  // Load dashboard data
   const loadDashboard = useCallback(async (cycleId: string) => {
     try {
       setLoading(true);
       const data = await evaluationService.getCycleDashboard(cycleId);
       setDashboard(data);
       if (!data || data.length === 0) {
-        toast('Nenhum dado encontrado para este ciclo', {
-          icon: 'ℹ️',
-          duration: 3000
-        });
+        toast('Nenhum dado encontrado para este ciclo', { icon: 'ℹ️', duration: 3000 });
       }
     } catch (error) {
       console.error('Erro ao carregar dashboard:', error);
@@ -187,7 +174,6 @@ export const useEvaluation = (): UseEvaluationReturn => {
     }
   }, []);
 
-  // Load NineBox data
   const loadNineBoxData = useCallback(async (cycleId: string) => {
     try {
       setLoading(true);
@@ -201,10 +187,8 @@ export const useEvaluation = (): UseEvaluationReturn => {
     }
   }, []);
 
-  // Load subordinates
   const loadSubordinates = useCallback(async () => {
     if (!user?.id) return;
-    
     try {
       setLoading(true);
       const allUsers = await usersService.getAll();
@@ -218,25 +202,21 @@ export const useEvaluation = (): UseEvaluationReturn => {
     }
   }, [user]);
 
-  // Create new cycle
   const createCycle = useCallback(async (cycle: Omit<EvaluationCycle, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       setLoading(true);
-      const newCycle = await evaluationService.createCycle({
-        ...cycle,
-        created_by: user?.id || ''
-      });
+      await evaluationService.createCycle({ ...cycle, created_by: user?.id || '' });
       toast.success('Ciclo de avaliação criado com sucesso!');
       await loadAllCycles();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro ao criar ciclo:', error);
-      toast.error(error.message || 'Erro ao criar ciclo de avaliação');
+      const message = error instanceof Error ? error.message : 'Erro ao criar ciclo de avaliação';
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   }, [user, loadAllCycles]);
 
-  // Open cycle
   const openCycle = useCallback(async (cycleId: string) => {
     try {
       setLoading(true);
@@ -252,7 +232,6 @@ export const useEvaluation = (): UseEvaluationReturn => {
     }
   }, [loadAllCycles, loadCurrentCycle]);
 
-  // Close cycle
   const closeCycle = useCallback(async (cycleId: string) => {
     try {
       setLoading(true);
@@ -268,7 +247,6 @@ export const useEvaluation = (): UseEvaluationReturn => {
     }
   }, [loadAllCycles, loadCurrentCycle]);
 
-  // Save self evaluation
   const saveSelfEvaluation = useCallback(async (data: {
     cycleId: string;
     employeeId: string;
@@ -289,15 +267,15 @@ export const useEvaluation = (): UseEvaluationReturn => {
         data.toolkit
       );
       toast.success('Autoavaliação salva com sucesso!');
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro ao salvar autoavaliação:', error);
-      toast.error(error.message || 'Erro ao salvar autoavaliação');
+      const message = error instanceof Error ? error.message : 'Erro ao salvar autoavaliação';
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Save leader evaluation
   const saveLeaderEvaluation = useCallback(async (data: {
     cycleId: string;
     employeeId: string;
@@ -338,21 +316,20 @@ export const useEvaluation = (): UseEvaluationReturn => {
     }
   }, []);
 
-  // Create consensus meeting
   const createConsensus = useCallback(async (data: Partial<ConsensusMeeting>) => {
     try {
       setLoading(true);
       await evaluationService.createConsensusMeeting(data);
       toast.success('Reunião de consenso criada!');
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro ao criar consenso:', error);
-      toast.error(error.message || 'Erro ao criar reunião de consenso');
+      const message = error instanceof Error ? error.message : 'Erro ao criar reunião de consenso';
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Complete consensus
   const completeConsensus = useCallback(async (
     meetingId: string,
     performanceScore: number,
@@ -361,12 +338,7 @@ export const useEvaluation = (): UseEvaluationReturn => {
   ) => {
     try {
       setLoading(true);
-      await evaluationService.completeConsensusMeeting(
-        meetingId,
-        performanceScore,
-        potentialScore,
-        notes
-      );
+      await evaluationService.completeConsensusMeeting(meetingId, performanceScore, potentialScore, notes);
       toast.success('Consenso finalizado com sucesso!');
     } catch (error) {
       console.error('Erro ao finalizar consenso:', error);
@@ -376,7 +348,6 @@ export const useEvaluation = (): UseEvaluationReturn => {
     }
   }, []);
 
-  // Get employee evaluations (unified)
   const getEmployeeEvaluations = useCallback(async (cycleId: string, employeeId: string): Promise<EvaluationExtended[]> => {
     try {
       return await evaluationService.getEmployeeEvaluations(cycleId, employeeId);
@@ -386,7 +357,6 @@ export const useEvaluation = (): UseEvaluationReturn => {
     }
   }, []);
 
-  // Get self evaluations
   const getSelfEvaluations = useCallback(async (employeeId: string, cycleId?: string): Promise<SelfEvaluation[]> => {
     try {
       return await evaluationService.getSelfEvaluations(employeeId, cycleId);
@@ -396,7 +366,6 @@ export const useEvaluation = (): UseEvaluationReturn => {
     }
   }, []);
 
-  // Get leader evaluations
   const getLeaderEvaluations = useCallback(async (employeeId: string, cycleId?: string): Promise<LeaderEvaluation[]> => {
     try {
       return await evaluationService.getLeaderEvaluations(employeeId, cycleId);
@@ -406,7 +375,6 @@ export const useEvaluation = (): UseEvaluationReturn => {
     }
   }, []);
 
-  // Check existing evaluation
   const checkExistingEvaluation = useCallback(async (
     cycleId: string,
     employeeId: string,
@@ -420,28 +388,37 @@ export const useEvaluation = (): UseEvaluationReturn => {
     }
   }, []);
 
-  // Add getNineBoxByEmployeeId
   const getNineBoxByEmployeeId = (employeeId: string) => {
     return nineBoxData.find((item) => item.employee_id === employeeId);
   };
 
-  // Add savePDI
-  const savePDI = async (pdiData: any) => {
+  const savePDI = async (pdiData: PdiData): Promise<PdiData> => {
     try {
       setLoading(true);
-      const result = await evaluationService.savePDI(pdiData);
+      const allItems = [
+        ...pdiData.curtosPrazos.map(i => ({ ...i, prazo: 'curto' })),
+        ...pdiData.mediosPrazos.map(i => ({ ...i, prazo: 'medio' })),
+        ...pdiData.longosPrazos.map(i => ({ ...i, prazo: 'longo' })),
+      ];
+      const result = await evaluationService.savePDI({
+        employeeId: pdiData.colaboradorId,
+        goals: allItems.map(i => `Competência: ${i.competencia}. Resultados Esperados: ${i.resultadosEsperados}`),
+        actions: allItems.map(i => `Como desenvolver: ${i.comoDesenvolver} (Prazo: ${i.calendarizacao}, Status: ${i.status}, Observação: ${i.observacao})`),
+        timeline: pdiData.periodo,
+        items: allItems,
+      });
       toast.success('PDI salvo com sucesso!');
       return result;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro ao salvar PDI:', error);
-      toast.error(error.message || 'Erro ao salvar PDI');
+      const message = error instanceof Error ? error.message : 'Erro ao salvar PDI';
+      toast.error(message);
       throw error;
     } finally {
       setLoading(false);
     }
   };
 
-  // Add loadPDI
   const loadPDI = useCallback(async (employeeId: string): Promise<PdiData | null> => {
     try {
       setLoading(true);
@@ -452,9 +429,8 @@ export const useEvaluation = (): UseEvaluationReturn => {
         const mediosPrazos: ActionItem[] = [];
         const longosPrazos: ActionItem[] = [];
 
-        // Primeiro verificar se temos o campo items (novo formato)
         if (pdiDataFromApi.items && Array.isArray(pdiDataFromApi.items)) {
-          pdiDataFromApi.items.forEach((item: any) => {
+          pdiDataFromApi.items.forEach((item: ActionItem & { prazo?: string }) => {
             const actionItem: ActionItem = {
               id: item.id || `item-${Date.now()}-${Math.random()}`,
               competencia: item.competencia || '',
@@ -464,46 +440,27 @@ export const useEvaluation = (): UseEvaluationReturn => {
               status: item.status || '1',
               observacao: item.observacao || ''
             };
-
-            // Distribuir nos prazos corretos
             switch (item.prazo) {
-              case 'curto':
-                curtosPrazos.push(actionItem);
-                break;
-              case 'medio':
-                mediosPrazos.push(actionItem);
-                break;
-              case 'longo':
-                longosPrazos.push(actionItem);
-                break;
-              default:
-                curtosPrazos.push(actionItem); // Default para curto prazo
+              case 'curto': curtosPrazos.push(actionItem); break;
+              case 'medio': mediosPrazos.push(actionItem); break;
+              case 'longo': longosPrazos.push(actionItem); break;
+              default: curtosPrazos.push(actionItem);
             }
           });
-        }
-        // Se não tem items, tentar processar goals e actions (formato antigo)
-        else if (pdiDataFromApi.goals && Array.isArray(pdiDataFromApi.goals)) {
-          pdiDataFromApi.goals.forEach((goal: string, index: number) => {
-            const action = pdiDataFromApi.actions?.[index] || '';
-            
-            // Extrair competência e resultados esperados do goal
+        } else if (pdiDataFromApi.goals && Array.isArray(pdiDataFromApi.goals)) {
+          (pdiDataFromApi.goals as string[]).forEach((goal: string, index: number) => {
+            const action = (pdiDataFromApi.actions as string[])?.[index] || '';
             const competenciaMatch = goal.match(/Competência: (.+?)\. Resultados Esperados: (.+)/);
             const competencia = competenciaMatch?.[1] || goal.split('.')[0] || 'N/A';
             const resultadosEsperados = competenciaMatch?.[2] || goal.split('.')[1] || 'N/A';
-            
-            // Extrair como desenvolver, prazo, status e observação do action
-            // Tentar diferentes formatos de regex
             let actionMatch = action.match(/Como desenvolver: (.+?) \(Prazo: (.+?), Status: (.+?), Observação: (.+?)\)\./);
             if (!actionMatch) {
-              // Tentar sem o ponto final
               actionMatch = action.match(/Como desenvolver: (.+?) \(Prazo: (.+?), Status: (.+?), Observação: (.+?)\)/);
             }
-            
             const comoDesenvolver = actionMatch?.[1] || action.replace(/Como desenvolver: /, '').split('(')[0].trim() || 'N/A';
             const calendarizacao = actionMatch?.[2] || 'N/A';
             const status = (actionMatch?.[3] || '1') as '1' | '2' | '3' | '4' | '5';
             const observacao = actionMatch?.[4] || 'N/A';
-            
             const actionItem: ActionItem = {
               id: `item-${index}-${Date.now()}`,
               competencia,
@@ -513,26 +470,19 @@ export const useEvaluation = (): UseEvaluationReturn => {
               status,
               observacao,
             };
-
-            // Distribuir nos prazos baseado no índice ou em alguma lógica
-            // Por padrão, vamos colocar todos em curto prazo
-            // Você pode ajustar essa lógica conforme necessário
-            if (index < pdiDataFromApi.goals.length / 3) {
-              curtosPrazos.push(actionItem);
-            } else if (index < (pdiDataFromApi.goals.length * 2) / 3) {
-              mediosPrazos.push(actionItem);
-            } else {
-              longosPrazos.push(actionItem);
-            }
+            const total = (pdiDataFromApi.goals as string[]).length;
+            if (index < total / 3) curtosPrazos.push(actionItem);
+            else if (index < (total * 2) / 3) mediosPrazos.push(actionItem);
+            else longosPrazos.push(actionItem);
           });
         }
 
         return {
           id: pdiDataFromApi.id,
           colaboradorId: pdiDataFromApi.employee_id,
-          colaborador: '', // Será preenchido no componente
-          cargo: '', // Será preenchido no componente
-          departamento: '', // Será preenchido no componente
+          colaborador: '',
+          cargo: '',
+          departamento: '',
           periodo: pdiDataFromApi.timeline || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
           curtosPrazos,
           mediosPrazos,
@@ -543,19 +493,18 @@ export const useEvaluation = (): UseEvaluationReturn => {
       }
 
       return null;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro ao carregar PDI:', error);
-      toast.error(error.message || 'Erro ao carregar PDI');
+      const message = error instanceof Error ? error.message : 'Erro ao carregar PDI';
+      toast.error(message);
       return null;
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Reload employees data
   const reloadEmployees = useCallback(async () => {
     try {
-      // Invalidar cache para forçar busca de dados atualizados
       dataCacheService.invalidate();
       const data = await usersService.getAll();
       setEmployees(data);
@@ -564,7 +513,6 @@ export const useEvaluation = (): UseEvaluationReturn => {
     }
   }, []);
 
-  // Load organizational competencies
   const loadOrganizationalCompetencies = useCallback(async () => {
     try {
       const { data: orgCompetencies } = await supabase
@@ -574,12 +522,12 @@ export const useEvaluation = (): UseEvaluationReturn => {
         .order('position', { ascending: true });
 
       if (orgCompetencies && orgCompetencies.length > 0) {
-        const mappedDeliveries = orgCompetencies.map((comp: any) => ({
-          id: comp.id,
-          name: comp.name,
-          description: comp.description,
+        const mappedDeliveries: DeliveryCriterion[] = orgCompetencies.map((comp) => ({
+          id: comp.id as string,
+          name: comp.name as string,
+          description: comp.description as string,
           category: 'deliveries' as const,
-          position: comp.position
+          position: comp.position as number
         }));
         setDeliveriesCriteria(mappedDeliveries);
       } else {
@@ -591,7 +539,6 @@ export const useEvaluation = (): UseEvaluationReturn => {
     }
   }, []);
 
-  // Load initial data
   useEffect(() => {
     loadCurrentCycle();
     loadOrganizationalCompetencies();

@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../middleware/auth';
 
 export const departmentController = {
@@ -100,7 +100,7 @@ export const departmentController = {
 
       // Verificar se existem usuários no departamento
       const { data: users, error: usersError } = await req.supabase
-        .from('profiles')
+        .from('users')
         .select('id')
         .eq('department_id', id)
         .limit(1);
