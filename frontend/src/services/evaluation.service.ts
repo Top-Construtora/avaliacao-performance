@@ -333,9 +333,58 @@ export const evaluationService = {
   }): Promise<any> {
     try {
       const response = await api.put(`/evaluations/pdi/${pdiId}`, updates);
-      return response.data;
+      return response.data || response;
     } catch (error) {
       console.error('Erro ao atualizar PDI:', error);
+      throw error;
+    }
+  },
+
+  // ====================================
+  // NINE BOX - PROMOÇÃO DE QUADRANTE
+  // ====================================
+
+  async promoteNineBoxQuadrant(consensusId: string, promotedPotentialQuadrant: string): Promise<any> {
+    try {
+      const response = await api.put(`/evaluations/consensus/${consensusId}/promote`, {
+        promotedPotentialQuadrant
+      });
+      return response.data || response;
+    } catch (error) {
+      console.error('Erro ao promover quadrante Nine Box:', error);
+      throw error;
+    }
+  },
+
+  // ====================================
+  // HISTÓRICO DE AVALIAÇÕES
+  // ====================================
+
+  async getEmployeeEvaluationHistory(employeeId: string): Promise<any[]> {
+    try {
+      const response = await api.get(`/evaluations/employee/${employeeId}/evaluation-history`);
+      if (response && response.success) {
+        return response.data || [];
+      }
+      return response.data || response || [];
+    } catch (error) {
+      console.error('Erro ao buscar histórico de avaliações:', error);
+      return [];
+    }
+  },
+
+  // ====================================
+  // DELIBERAÇÕES DO COMITÊ
+  // ====================================
+
+  async saveCommitteeDeliberations(consensusId: string, deliberations: string): Promise<any> {
+    try {
+      const response = await api.put(`/evaluations/consensus/${consensusId}/deliberations`, {
+        deliberations
+      });
+      return response.data || response;
+    } catch (error) {
+      console.error('Erro ao salvar deliberações:', error);
       throw error;
     }
   }

@@ -87,10 +87,10 @@ const LeaderEvaluationHeader: React.FC<LeaderEvaluationHeaderProps> = ({
   };
 
   const getQuadrantColor = (quadrant?: string) => {
-    if (!quadrant) return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+    if (!quadrant) return 'bg-gray-100 text-gray-700 dark:bg-yt-elevated dark:text-gray-300';
     const colors: Record<string, string> = {
-      'A1': 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
-      'A2': 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400',
+      'A1': 'bg-green-100 text-green-700 dark:bg-primary-900/30 dark:text-green-300',
+      'A2': 'bg-green-50 text-green-600 dark:bg-primary-900/20 dark:text-green-400',
       'A3': 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
       'B1': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
       'B2': 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400',
@@ -99,7 +99,7 @@ const LeaderEvaluationHeader: React.FC<LeaderEvaluationHeaderProps> = ({
       'C2': 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400',
       'C3': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
     };
-    return colors[quadrant] || 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+    return colors[quadrant] || 'bg-gray-100 text-gray-700 dark:bg-yt-elevated dark:text-gray-300';
   };
 
   React.useEffect(() => {
@@ -116,7 +116,7 @@ const LeaderEvaluationHeader: React.FC<LeaderEvaluationHeaderProps> = ({
     <motion.div
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-sm dark:shadow-lg border border-gray-100 dark:border-gray-700 p-4 sm:p-6 lg:p-8"
+      className="bg-white dark:bg-yt-surface rounded-xl sm:rounded-2xl shadow-sm dark:shadow-lg border border-gray-100 dark:border-yt-border p-4 sm:p-6 lg:p-8"
     >
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 space-y-4 sm:space-y-0">
         <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
@@ -152,7 +152,7 @@ const LeaderEvaluationHeader: React.FC<LeaderEvaluationHeaderProps> = ({
         <div className="flex items-center space-x-4 flex-shrink-0">
           {/* Auto-save indicator */}
           {lastSaved && (
-            <div className="hidden sm:flex items-center space-x-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded-full">
+            <div className="hidden sm:flex items-center space-x-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-yt-elevated px-3 py-1.5 rounded-full">
               <Clock className="h-3.5 w-3.5" />
               <span>
                 Salvo às {lastSaved.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
@@ -224,7 +224,7 @@ const LeaderEvaluationHeader: React.FC<LeaderEvaluationHeaderProps> = ({
           <div className="relative">
             {/* Search input / Selected display */}
             <div
-              className={`w-full px-4 py-3 pl-12 pr-10 bg-white dark:bg-gray-700 border ${isDropdownOpen ? 'border-green-800 dark:border-green-700 ring-2 ring-green-800 dark:ring-green-700' : 'border-gray-300 dark:border-gray-600'} rounded-xl text-sm sm:text-base cursor-pointer transition-all`}
+              className={`w-full px-4 py-3 pl-12 pr-10 bg-white dark:bg-yt-elevated border ${isDropdownOpen ? 'border-green-800 dark:border-green-700 ring-2 ring-green-800 dark:ring-green-700' : 'border-gray-300 dark:border-yt-border'} rounded-xl text-sm sm:text-base cursor-pointer transition-all`}
               onClick={() => !loading && setIsDropdownOpen(true)}
             >
               {isDropdownOpen ? (
@@ -244,7 +244,7 @@ const LeaderEvaluationHeader: React.FC<LeaderEvaluationHeaderProps> = ({
               )}
             </div>
             {isDropdownOpen ? (
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-green-800 dark:text-green-700 pointer-events-none" />
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-green-800 dark:text-primary-400 pointer-events-none" />
             ) : (
               <Info className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
             )}
@@ -269,7 +269,7 @@ const LeaderEvaluationHeader: React.FC<LeaderEvaluationHeaderProps> = ({
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl shadow-lg max-h-60 overflow-y-auto"
+                  className="absolute z-50 w-full mt-2 bg-white dark:bg-yt-elevated border border-gray-200 dark:border-yt-border rounded-xl shadow-lg max-h-60 overflow-y-auto"
                 >
                   {loading ? (
                     <div className="px-4 py-3 text-gray-500 dark:text-gray-400 text-sm">Carregando...</div>
@@ -283,7 +283,7 @@ const LeaderEvaluationHeader: React.FC<LeaderEvaluationHeaderProps> = ({
                         key={employee.id}
                         onClick={() => handleSelectEmployee(employee.id)}
                         className={`w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors flex items-center space-x-3 ${
-                          employee.id === selectedEmployeeId ? 'bg-green-50 dark:bg-green-900/20' : ''
+                          employee.id === selectedEmployeeId ? 'bg-green-50 dark:bg-primary-900/20' : ''
                         }`}
                       >
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-100 to-green-200 dark:from-green-800 dark:to-green-900 flex items-center justify-center flex-shrink-0">
@@ -321,7 +321,7 @@ const LeaderEvaluationHeader: React.FC<LeaderEvaluationHeaderProps> = ({
                 <Briefcase className="inline h-4 w-4 mr-1" />
                 Cargo
               </label>
-              <div className="px-4 py-3 bg-gray-50 dark:bg-gray-700 rounded-xl text-gray-700 dark:text-gray-200 text-sm">
+              <div className="px-4 py-3 bg-gray-50 dark:bg-yt-elevated rounded-xl text-gray-700 dark:text-gray-200 text-sm">
                 {selectedEmployee.position}
               </div>
             </div>
@@ -331,7 +331,7 @@ const LeaderEvaluationHeader: React.FC<LeaderEvaluationHeaderProps> = ({
                 <Building className="inline h-4 w-4 mr-1" />
                 Departamento
               </label>
-              <div className="px-4 py-3 bg-gray-50 dark:bg-gray-700 rounded-xl text-gray-700 dark:text-gray-200 text-sm">
+              <div className="px-4 py-3 bg-gray-50 dark:bg-yt-elevated rounded-xl text-gray-700 dark:text-gray-200 text-sm">
                 {Array.isArray(selectedEmployee.departments)
                   ? selectedEmployee.departments.length > 0
                     ? selectedEmployee.departments.map(dep => dep.name).join(', ')
@@ -344,7 +344,7 @@ const LeaderEvaluationHeader: React.FC<LeaderEvaluationHeaderProps> = ({
                 <Calendar className="inline h-4 w-4 mr-1" />
                 Data
               </label>
-              <div className="px-4 py-3 bg-gray-50 dark:bg-gray-700 rounded-xl text-gray-700 dark:text-gray-200 text-sm">
+              <div className="px-4 py-3 bg-gray-50 dark:bg-yt-elevated rounded-xl text-gray-700 dark:text-gray-200 text-sm">
                 {new Date().toLocaleDateString('pt-BR')}
               </div>
             </div>
@@ -353,9 +353,9 @@ const LeaderEvaluationHeader: React.FC<LeaderEvaluationHeaderProps> = ({
       </div>
 
       {selectedEmployee && employeeNineBox && (
-        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+        <div className="mt-4 p-4 bg-gray-50 dark:bg-yt-elevated/50 rounded-lg border border-gray-200 dark:border-yt-border">
           <div className="flex items-center space-x-3">
-            <Grid3x3 className="h-5 w-5 text-green-800 dark:text-green-700" />
+            <Grid3x3 className="h-5 w-5 text-green-800 dark:text-primary-400" />
             <div>
               <p className="text-sm font-medium text-naue-black dark:text-gray-300 font-medium">Resultado Nine Box</p>
               <div className="flex items-center space-x-2 mt-1">
@@ -379,7 +379,7 @@ const LeaderEvaluationHeader: React.FC<LeaderEvaluationHeaderProps> = ({
           </label>
           <input
             type="text"
-            className="w-full rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-green-800 dark:focus:border-green-700 focus:ring-green-800 dark:focus:ring-green-700 text-naue-black dark:text-gray-300 font-medium transition-all duration-200 text-sm sm:text-base"
+            className="w-full rounded-lg border-gray-200 dark:border-yt-border bg-white dark:bg-yt-elevated shadow-sm focus:border-green-800 dark:focus:border-primary-400 focus:ring-green-800 dark:focus:ring-primary-400 text-naue-black dark:text-gray-300 font-medium transition-all duration-200 text-sm sm:text-base"
             value={pdiData.periodo}
             onChange={(e) => setPdiData((prev: any) => ({ ...prev, periodo: e.target.value }))}
             placeholder="Ex: 2024-2025"
@@ -389,7 +389,7 @@ const LeaderEvaluationHeader: React.FC<LeaderEvaluationHeaderProps> = ({
 
       {selectedEmployeeId && (
         <div className="mt-6 flex items-center justify-center space-x-2">
-          <div className={`flex items-center ${currentStep >= 1 ? 'text-green-800 dark:text-green-700' : 'text-gray-400 dark:text-gray-600'}`}>
+          <div className={`flex items-center ${currentStep >= 1 ? 'text-green-800 dark:text-primary-400' : 'text-gray-400 dark:text-gray-600'}`}>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
               currentStep >= 1 ? 'bg-green-800 dark:bg-green-700 text-white' : 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400'
             }`}>
@@ -398,7 +398,7 @@ const LeaderEvaluationHeader: React.FC<LeaderEvaluationHeaderProps> = ({
             <span className="ml-2 text-sm font-medium">Competências</span>
           </div>
           <div className={`w-16 h-0.5 ${currentStep >= 2 ? 'bg-green-800 dark:bg-green-700' : 'bg-gray-300 dark:bg-gray-600'}`} />
-          <div className={`flex items-center ${currentStep >= 2 ? 'text-green-800 dark:text-green-700' : 'text-gray-400 dark:text-gray-600'}`}>
+          <div className={`flex items-center ${currentStep >= 2 ? 'text-green-800 dark:text-primary-400' : 'text-gray-400 dark:text-gray-600'}`}>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
               currentStep >= 2 ? 'bg-green-800 dark:bg-green-700 text-white' : 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400'
             }`}>
@@ -407,7 +407,7 @@ const LeaderEvaluationHeader: React.FC<LeaderEvaluationHeaderProps> = ({
             <span className="ml-2 text-sm font-medium">Potencial</span>
           </div>
           <div className={`w-16 h-0.5 ${currentStep >= 3 ? 'bg-green-800 dark:bg-green-700' : 'bg-gray-300 dark:bg-gray-600'}`} />
-          <div className={`flex items-center ${currentStep >= 3 ? 'text-green-800 dark:text-green-700' : 'text-gray-400 dark:text-gray-600'}`}>
+          <div className={`flex items-center ${currentStep >= 3 ? 'text-green-800 dark:text-primary-400' : 'text-gray-400 dark:text-gray-600'}`}>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
               currentStep >= 3 ? 'bg-green-800 dark:bg-green-700 text-white' : 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400'
             }`}>

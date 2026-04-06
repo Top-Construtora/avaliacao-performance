@@ -15,6 +15,14 @@ export const errorHandler = (
   res: Response,
   next: NextFunction
 ) => {
+  // Garante headers CORS em respostas de erro para o frontend conseguir ler o erro
+  const origin = req.headers.origin as string;
+  const allowedOrigins = req.app.locals.allowedOrigins as string[] | undefined;
+  if (origin && allowedOrigins?.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+
   let statusCode = 500;
   let message = 'Internal Server Error';
 

@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import { createClient } from '@supabase/supabase-js';
 import { Database } from '../types/supabase';
 import { supabaseAdmin } from '../config/supabase';
 
@@ -24,25 +23,8 @@ export const authenticateToken = async (
       });
     }
 
-    // Criar cliente Supabase com o token do usuário
-    const supabase = createClient<Database>(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_ANON_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        },
-        global: {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      }
-    );
-
-    // Verificar o token e obter o usuário
-    const { data: { user }, error } = await supabase.auth.getUser();
+    // Validar token usando o admin client (evita criar um novo client por request)
+    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
 
     if (error || !user) {
       console.error('❌ Auth: Token inválido -', error?.message);

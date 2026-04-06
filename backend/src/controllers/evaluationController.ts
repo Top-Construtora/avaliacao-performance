@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { evaluationService } from '../services/evaluationService';
+import { notificationService } from '../services/notificationService';
 import { AuthRequest } from '../middleware/auth';
 
 export const evaluationController = {
@@ -73,7 +74,20 @@ export const evaluationController = {
         id,
         'open'
       );
-      
+
+      // Enviar notificação para todos os usuários ativos
+      notificationService.send(authReq.supabase, {
+        type: 'evaluation_cycle_opened',
+        title: 'Ciclo de avaliação aberto',
+        message: `O ciclo "${updatedCycle?.title || 'Avaliação'}" está aberto. Complete sua autoavaliação.`,
+        targets: [{ type: 'all' }],
+        actor_id: authReq.user!.id,
+        priority: 'high',
+        action_url: '/self-evaluation',
+        entity_type: 'evaluation_cycle',
+        entity_id: id,
+      }).catch(err => console.error('Notification error:', err));
+
       res.json({
         success: true,
         data: updatedCycle

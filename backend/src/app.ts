@@ -11,6 +11,8 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+
+
 // --- CONFIGURAÇÃO DE CORS CENTRALIZADA ---
 
 // Domínios permitidos em produção
@@ -37,6 +39,9 @@ if (process.env.FRONTEND_URL && !allowedOrigins.includes(process.env.FRONTEND_UR
   allowedOrigins.push(process.env.FRONTEND_URL);
 }
 
+// Disponibiliza para o errorHandler via app.locals
+app.locals.allowedOrigins = allowedOrigins;
+
 const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
     // Permite requisições sem 'origin' (ex: Postman, apps mobile, ou server-to-server)
@@ -45,7 +50,9 @@ const corsOptions: CorsOptions = {
     } else {
       // Loga a origem bloqueada para facilitar o debug
       console.error(`CORS Bloqueado para a origem: ${origin}`);
-      callback(new Error('Acesso não permitido por CORS'));
+      // Usa callback(null, false) ao invés de Error para não gerar 500
+      // O navegador bloqueará a resposta pela ausência do header CORS
+      callback(null, false);
     }
   },
   credentials: true, // Essencial para cookies e autenticação

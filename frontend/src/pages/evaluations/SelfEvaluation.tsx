@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -67,20 +67,159 @@ const SelfEvaluation = () => {
   const [competencyScores, setCompetencyScores] = useState<CompetencyScore>({});
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['competencias-tecnicas']));
   const [completedSections, setCompletedSections] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<'edit' | 'view'>('edit');
   const [hasExistingEvaluation, setHasExistingEvaluation] = useState(false);
+  const [existingEvaluationData, setExistingEvaluationData] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [competencyCategories, setCompetencyCategories] = useState<any[]>([]);
 
-  // Check for existing evaluation
+  // Auto-save states
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isRestoringData, setIsRestoringData] = useState(false);
+
+  // Storage key for auto-save
+  const getStorageKey = useCallback(() => {
+    if (!currentCycle?.id || !user?.id) return null;
+    return `self_evaluation_autosave_${currentCycle.id}_${user.id}`;
+  }, [currentCycle?.id, user?.id]);
+
+  // Check for existing evaluation and populate view mode
   useEffect(() => {
     const checkExisting = async () => {
       if (currentCycle && user) {
-        const exists = await checkExistingEvaluation(currentCycle.id, user.id, 'self');
-        setHasExistingEvaluation(exists);
+        try {
+          const response = await evaluationService.getSelfEvaluations(user.id, currentCycle.id);
+
+          if (response && response.length > 0) {
+            const existingEval = response[0];
+            setHasExistingEvaluation(true);
+            setExistingEvaluationData(existingEval);
+            setViewMode('view');
+            setCurrentStep('competencies');
+
+            if (existingEval.evaluation_competencies) {
+              const scores: CompetencyScore = {};
+              existingEval.evaluation_competencies.forEach((comp: any) => {
+                scores[comp.criterion_name] = comp.score;
+              });
+              setCompetencyScores(scores);
+            }
+
+            setFormData({
+              conhecimentos: existingEval.knowledge?.length > 0 ? existingEval.knowledge : [''],
+              ferramentas: existingEval.tools?.length > 0 ? existingEval.tools : [''],
+              forcasInternas: existingEval.strengths_internal?.length > 0 ? existingEval.strengths_internal : [''],
+              qualidades: existingEval.qualities?.length > 0 ? existingEval.qualities : ['']
+            });
+
+            const completedSectionsSet = new Set<string>();
+            if (existingEval.knowledge?.length > 0) completedSectionsSet.add('conhecimentos');
+            if (existingEval.tools?.length > 0) completedSectionsSet.add('ferramentas');
+            if (existingEval.strengths_internal?.length > 0) completedSectionsSet.add('forcasInternas');
+            if (existingEval.qualities?.length > 0) completedSectionsSet.add('qualidades');
+            setCompletedSections(completedSectionsSet);
+
+            setExpandedSections(new Set(['competencias-tecnicas', 'competencias-comportamentais', 'competencias-organizacionais']));
+          } else {
+            setHasExistingEvaluation(false);
+            setExistingEvaluationData(null);
+            setViewMode('edit');
+          }
+        } catch (error) {
+          console.error('Erro ao verificar autoavaliação existente:', error);
+          setHasExistingEvaluation(false);
+          setExistingEvaluationData(null);
+          setViewMode('edit');
+        }
       }
     };
     checkExisting();
-  }, [currentCycle, user, checkExistingEvaluation]);
+  }, [currentCycle, user]);
+
+  // Auto-save: Restaurar dados do localStorage ao carregar (apenas se não houver avaliação existente)
+  useEffect(() => {
+    const storageKey = getStorageKey();
+    if (!storageKey || hasExistingEvaluation || viewMode === 'view') return;
+
+    const savedData = localStorage.getItem(storageKey);
+    if (savedData) {
+      try {
+        setIsRestoringData(true);
+        const parsed = JSON.parse(savedData);
+
+        if (parsed.formData) {
+          setFormData(parsed.formData);
+          const completedSectionsSet = new Set<string>();
+          Object.entries(parsed.formData).forEach(([key, values]) => {
+            if ((values as string[]).some(v => v.trim() !== '')) {
+              completedSectionsSet.add(key);
+            }
+          });
+          setCompletedSections(completedSectionsSet);
+        }
+
+        if (parsed.competencyScores) {
+          setCompetencyScores(parsed.competencyScores);
+        }
+
+        if (parsed.currentStep) {
+          setCurrentStep(parsed.currentStep);
+        }
+
+        if (parsed.timestamp) {
+          setLastSaved(new Date(parsed.timestamp));
+        }
+
+        toast.success('Dados restaurados automaticamente', {
+          icon: '💾',
+          duration: 3000
+        });
+      } catch (error) {
+        console.error('Erro ao restaurar auto-save:', error);
+        localStorage.removeItem(storageKey);
+      } finally {
+        setIsRestoringData(false);
+      }
+    }
+  }, [getStorageKey, hasExistingEvaluation, viewMode]);
+
+  // Auto-save: Salvar dados no localStorage quando houver mudanças
+  useEffect(() => {
+    const storageKey = getStorageKey();
+    if (!storageKey || viewMode === 'view' || hasExistingEvaluation || isRestoringData) return;
+
+    const hasFormData = Object.values(formData).some(arr => arr.some(v => v.trim() !== ''));
+    const hasScores = Object.keys(competencyScores).length > 0;
+
+    if (hasFormData || hasScores) {
+      const dataToSave = {
+        formData,
+        competencyScores,
+        currentStep,
+        timestamp: new Date().toISOString()
+      };
+
+      localStorage.setItem(storageKey, JSON.stringify(dataToSave));
+      setLastSaved(new Date());
+      setHasUnsavedChanges(false);
+    }
+  }, [formData, competencyScores, currentStep, getStorageKey, hasExistingEvaluation, isRestoringData]);
+
+  // Marcar como tendo alterações não salvas
+  useEffect(() => {
+    if (!isRestoringData) {
+      setHasUnsavedChanges(true);
+    }
+  }, [formData, competencyScores, isRestoringData]);
+
+  // Limpar auto-save após salvar com sucesso
+  const clearAutoSave = useCallback(() => {
+    const storageKey = getStorageKey();
+    if (storageKey) {
+      localStorage.removeItem(storageKey);
+    }
+  }, [getStorageKey]);
 
   // Initialize competency categories with dynamic organizational competencies
   useEffect(() => {
@@ -107,9 +246,9 @@ const SelfEvaluation = () => {
         id: 'competencias-comportamentais',
         title: 'Competências Comportamentais',
         icon: Users,
-        gradient: 'from-gray-600 to-gray-700 dark:from-gray-600 dark:to-gray-700',
-        bgColor: 'bg-gray-50 dark:bg-gray-800/20',
-        borderColor: 'border-gray-200 dark:border-gray-700',
+        gradient: 'from-gray-600 to-gray-700 dark:from-gray-600 dark:to-yt-elevated',
+        bgColor: 'bg-gray-50 dark:bg-yt-surface/20',
+        borderColor: 'border-gray-200 dark:border-yt-border',
         items: EVALUATION_COMPETENCIES.behavioral.map(comp => ({
           id: comp.name.toLowerCase().replace(/\s+/g, '-'),
           name: comp.name,
@@ -277,6 +416,7 @@ const SelfEvaluation = () => {
         }
       });
       
+      clearAutoSave();
       toast.success('Autoavaliação completa salva com sucesso!');
       navigate('/');
     } catch (error) {
@@ -334,8 +474,8 @@ const SelfEvaluation = () => {
     const periodMessage = getCyclePeriodMessage();
     
     return (
-      <div className="bg-naue-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 border border-naue-border-gray dark:border-gray-700 p-8 text-center">
-        <AlertCircle className="h-12 w-12 text-green-800 dark:text-green-700 mx-auto mb-4" />
+      <div className="bg-naue-white dark:bg-yt-surface rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 border border-naue-border-gray dark:border-yt-border p-8 text-center">
+        <AlertCircle className="h-12 w-12 text-green-800 dark:text-primary-400 mx-auto mb-4" />
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
           {!currentCycle ? 'Nenhum ciclo de avaliação ativo' : 'Período de avaliação indisponível'}
         </h3>
@@ -343,7 +483,7 @@ const SelfEvaluation = () => {
           {periodMessage?.message || 'Aguarde a abertura de um novo ciclo de avaliação.'}
         </p>
         {currentCycle && (
-          <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
+          <div className="mt-4 p-4 bg-gray-100 dark:bg-yt-elevated rounded-lg">
             <p className="text-sm text-naue-black dark:text-gray-300 font-medium">
               <strong>Ciclo:</strong> {currentCycle.title}
             </p>
@@ -367,7 +507,7 @@ const SelfEvaluation = () => {
   // Check if already evaluated
   if (hasExistingEvaluation) {
     return (
-      <div className="bg-naue-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 border border-naue-border-gray dark:border-gray-700 p-8 text-center">
+      <div className="bg-naue-white dark:bg-yt-surface rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 border border-naue-border-gray dark:border-yt-border p-8 text-center">
         <CheckCircle className="h-12 w-12 text-green-500 dark:text-green-400 mx-auto mb-4" />
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
           Autoavaliação já realizada
@@ -402,7 +542,7 @@ const SelfEvaluation = () => {
       subtitle: 'Sei falar sobre:',
       icon: Brain,
       gradient: 'from-green-800 to-green-900 dark:from-green-800 dark:to-green-900',
-      bgColor: 'bg-green-50 dark:bg-green-900/20',
+      bgColor: 'bg-green-50 dark:bg-primary-900/20',
       borderColor: 'border-green-200 dark:border-green-700',
       iconBg: 'bg-gradient-to-br from-green-800 to-green-900 dark:from-green-800 dark:to-green-900',
       items: formData.conhecimentos
@@ -412,10 +552,10 @@ const SelfEvaluation = () => {
       title: 'Ferramentas',
       subtitle: 'Sei usar:',
       icon: Wrench,
-      gradient: 'from-gray-600 to-gray-700 dark:from-gray-600 dark:to-gray-700',
-      bgColor: 'bg-gray-50 dark:bg-gray-900/20',
-      borderColor: 'border-gray-200 dark:border-gray-700',
-      iconBg: 'bg-gradient-to-br from-gray-600 to-gray-700 dark:from-gray-600 dark:to-gray-700',
+      gradient: 'from-gray-600 to-gray-700 dark:from-gray-600 dark:to-yt-elevated',
+      bgColor: 'bg-gray-50 dark:bg-yt-bg/20',
+      borderColor: 'border-gray-200 dark:border-yt-border',
+      iconBg: 'bg-gradient-to-br from-gray-600 to-gray-700 dark:from-gray-600 dark:to-yt-elevated',
       items: formData.ferramentas
     },
     {
@@ -484,10 +624,10 @@ const SelfEvaluation = () => {
             <motion.div
               key={section.id}
               variants={itemVariants}
-              className={`bg-naue-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-md dark:shadow-lg border ${isCompleted ? section.borderColor : 'border-naue-border-gray dark:border-gray-700'} overflow-hidden transition-all duration-300`}
+              className={`bg-naue-white dark:bg-yt-surface rounded-2xl shadow-sm hover:shadow-md dark:shadow-lg border ${isCompleted ? section.borderColor : 'border-naue-border-gray dark:border-yt-border'} overflow-hidden transition-all duration-300`}
             >
               {/* Section Header */}
-              <div className={`px-4 sm:px-6 lg:px-8 py-4 sm:py-6 ${isCompleted ? section.bgColor : 'bg-gray-50 dark:bg-gray-700/50'} border-b border-gray-100 dark:border-gray-700`}>
+              <div className={`px-4 sm:px-6 lg:px-8 py-4 sm:py-6 ${isCompleted ? section.bgColor : 'bg-gray-50 dark:bg-yt-elevated/50'} border-b border-gray-100 dark:border-yt-border`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3 sm:space-x-4">
                     <div className={`p-2 sm:p-3 rounded-lg sm:rounded-xl ${section.iconBg} shadow-md`}>
@@ -499,7 +639,7 @@ const SelfEvaluation = () => {
                     </div>
                   </div>
                   {isCompleted && (
-                    <div className="flex items-center space-x-1 sm:space-x-2 text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full">
+                    <div className="flex items-center space-x-1 sm:space-x-2 text-green-600 dark:text-green-400 bg-green-50 dark:bg-primary-900/20 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full">
                       <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                       <span className="text-xs sm:text-sm font-medium hidden sm:inline">Completo</span>
                     </div>
@@ -523,7 +663,7 @@ const SelfEvaluation = () => {
                           type="text"
                           value={item}
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField(section.id, index, e.target.value)}
-                          className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-naue-black dark:text-gray-300 font-medium rounded-lg sm:rounded-xl focus:ring-2 focus:ring-green-800 dark:focus:ring-green-700 focus:border-transparent transition-all duration-200 hover:border-gray-300 dark:hover:border-gray-500"
+                          className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-200 dark:border-yt-border bg-white dark:bg-yt-elevated text-naue-black dark:text-gray-300 font-medium rounded-lg sm:rounded-xl focus:ring-2 focus:ring-green-800 dark:focus:ring-primary-400 focus:border-transparent transition-all duration-200 hover:border-gray-300 dark:hover:border-gray-500"
                           placeholder={`Digite ${section.title.toLowerCase()} ${index + 1}...`}
                         />
                         {item.trim() && (
@@ -551,7 +691,7 @@ const SelfEvaluation = () => {
                 {/* Add More Button */}
                 <button
                   onClick={() => addField(section.id)}
-                  className={`mt-3 sm:mt-4 flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-lg sm:rounded-lg border border-dashed ${isCompleted ? section.borderColor : 'border-gray-300 dark:border-gray-600'} text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:border-gray-400 dark:hover:border-gray-500 transition-all duration-200 group`}
+                  className={`mt-3 sm:mt-4 flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-lg sm:rounded-lg border border-dashed ${isCompleted ? section.borderColor : 'border-gray-300 dark:border-yt-border'} text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:border-gray-400 dark:hover:border-gray-500 transition-all duration-200 group`}
                 >
                   <Plus className="h-3 w-3 sm:h-4 sm:w-4 group-hover:rotate-90 transition-transform duration-200" />
                   <span className="text-xs sm:text-sm font-medium">Adicionar mais</span>
@@ -567,22 +707,22 @@ const SelfEvaluation = () => {
           className="bg-gradient-to-br from-green-50 to-gray-50 dark:from-green-900/20 dark:to-gray-900/20 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300 border border-naue-border-gray dark:border-green-800"
         >
           <div className="flex items-start space-x-3">
-            <div className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-              <Info className="h-4 w-4 sm:h-5 sm:w-5 text-green-800 dark:text-green-700" />
+            <div className="p-2 bg-white dark:bg-yt-surface rounded-lg shadow-sm">
+              <Info className="h-4 w-4 sm:h-5 sm:w-5 text-green-800 dark:text-primary-400" />
             </div>
             <div className="flex-1">
               <h3 className="font-semibold text-gray-800 dark:text-gray-100 mb-2 text-sm sm:text-base">Dicas para uma boa autoavaliação</h3>
               <ul className="space-y-1 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                 <li className="flex items-start">
-                  <span className="text-green-800 dark:text-green-700 mr-2">•</span>
+                  <span className="text-green-800 dark:text-primary-400 mr-2">•</span>
                   <span>Seja específico e honesto sobre suas competências</span>
                 </li>
                 <li className="flex items-start">
-                  <span className="text-green-800 dark:text-green-700 mr-2">•</span>
+                  <span className="text-green-800 dark:text-primary-400 mr-2">•</span>
                   <span>Inclua tanto habilidades técnicas quanto comportamentais</span>
                 </li>
                 <li className="flex items-start">
-                  <span className="text-green-800 dark:text-green-700 mr-2">•</span>
+                  <span className="text-green-800 dark:text-primary-400 mr-2">•</span>
                   <span>Pense em situações reais onde aplicou essas habilidades</span>
                 </li>
               </ul>
@@ -649,7 +789,7 @@ const SelfEvaluation = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: categoryIndex * 0.1 }}
-            className="bg-naue-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-md dark:shadow-lg border border-naue-border-gray dark:border-gray-700 overflow-hidden"
+            className="bg-naue-white dark:bg-yt-surface rounded-2xl shadow-sm hover:shadow-md dark:shadow-lg border border-naue-border-gray dark:border-yt-border overflow-hidden"
           >
             <button
               onClick={() => toggleSection(category.id)}
@@ -669,7 +809,7 @@ const SelfEvaluation = () => {
                 </div>
                 
                 <div className="flex items-center space-x-2 sm:space-x-4">
-                  <div className="w-16 sm:w-32 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                  <div className="w-16 sm:w-32 bg-gray-200 dark:bg-yt-elevated rounded-full h-2">
                     <div 
                       className={`h-2 rounded-full bg-gradient-to-r ${category.gradient} transition-all duration-300`}
                       style={{ width: `${categoryProgress}%` }}
@@ -709,8 +849,8 @@ const SelfEvaluation = () => {
                         {competencyScores[item.id] && (
                           <div className="text-center">
                             <div className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${
-                              competencyScores[item.id] >= 4 ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' :
-                              competencyScores[item.id] >= 3 ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' :
+                              competencyScores[item.id] >= 4 ? 'bg-green-100 dark:bg-primary-900/30 text-green-800 dark:text-green-300' :
+                              competencyScores[item.id] >= 3 ? 'bg-green-100 dark:bg-primary-900/30 text-green-800 dark:text-green-300' :
                               competencyScores[item.id] >= 2 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300' :
                               'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
                             }`}>
@@ -737,7 +877,7 @@ const SelfEvaluation = () => {
                               className={`py-3 sm:py-4 px-2 sm:px-4 rounded-lg border transition-all duration-200 ${
                                 competencyScores[item.id] === rating
                                   ? `${ratingInfo.color} ${ratingInfo.darkColor} text-white border-transparent shadow-lg transform scale-105`
-                                  : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200'
+                                  : 'border-gray-200 dark:border-yt-border hover:border-gray-300 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 bg-white dark:bg-yt-surface text-gray-700 dark:text-gray-200'
                               }`}
                             >
                               <div className="text-center">
@@ -808,7 +948,7 @@ const SelfEvaluation = () => {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-naue-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-md dark:shadow-lg border border-naue-border-gray dark:border-gray-700 p-8"
+        className="bg-naue-white dark:bg-yt-surface rounded-2xl shadow-sm hover:shadow-md dark:shadow-lg border border-naue-border-gray dark:border-yt-border p-8"
       >
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-4 sm:mb-6 space-y-4 lg:space-y-0">
           <div className="flex items-center space-x-3 sm:space-x-4 w-full lg:w-auto">
@@ -893,18 +1033,18 @@ const SelfEvaluation = () => {
 
         {/* Step Indicator */}
         <div className="flex items-center justify-center space-x-2 sm:space-x-4">
-          <div className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-1 sm:py-2 rounded-full ${currentStep === 'toolkit' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
+          <div className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-1 sm:py-2 rounded-full ${currentStep === 'toolkit' ? 'bg-green-100 dark:bg-primary-900/30 text-green-700 dark:text-green-300' : 'bg-gray-100 dark:bg-yt-elevated text-gray-500 dark:text-gray-400'}`}>
             <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm ${currentStep === 'toolkit' ? 'bg-green-800 dark:bg-green-700 text-white' : 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300'}`}>
               1
             </div>
             <span className="font-medium text-xs sm:text-sm hidden sm:inline">Toolkit Profissional</span>
           </div>
           
-          <div className="w-8 sm:w-16 h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+          <div className="w-8 sm:w-16 h-1 bg-gray-200 dark:bg-yt-elevated rounded-full overflow-hidden">
             <div className={`h-full transition-all duration-500 ${currentStep === 'competencies' ? 'w-full bg-green-800 dark:bg-green-700' : 'w-0'}`} />
           </div>
           
-          <div className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-1 sm:py-2 rounded-full ${currentStep === 'competencies' ? 'bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-300' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
+          <div className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-1 sm:py-2 rounded-full ${currentStep === 'competencies' ? 'bg-gray-100 dark:bg-yt-bg/30 text-gray-700 dark:text-gray-300' : 'bg-gray-100 dark:bg-yt-elevated text-gray-500 dark:text-gray-400'}`}>
             <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm ${currentStep === 'competencies' ? 'bg-gray-600 dark:bg-gray-600 text-white' : 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300'}`}>
               2
             </div>
@@ -922,7 +1062,7 @@ const SelfEvaluation = () => {
               return (
                 <div 
                   key={section.id} 
-                  className={`p-3 sm:p-4 rounded-lg sm:rounded-xl border ${isCompleted ? section.borderColor : 'border-gray-200 dark:border-gray-600'} ${isCompleted ? section.bgColor : 'bg-gray-50 dark:bg-gray-700/50'} transition-all duration-300`}
+                  className={`p-3 sm:p-4 rounded-lg sm:rounded-xl border ${isCompleted ? section.borderColor : 'border-gray-200 dark:border-yt-border'} ${isCompleted ? section.bgColor : 'bg-gray-50 dark:bg-yt-elevated/50'} transition-all duration-300`}
                 >
                   <div className="flex items-center justify-between">
                     <section.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${isCompleted ? 'text-naue-black dark:text-gray-300 font-medium' : 'text-gray-400 dark:text-gray-500'}`} />

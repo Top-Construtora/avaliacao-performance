@@ -556,7 +556,7 @@ const EditUser = () => {
   // Loading state
   if (usersLoading || teamsLoading || depsLoading || loadingUser || tracksLoading || positionsLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-yt-bg">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-primary-500 dark:text-primary-400 mx-auto mb-4" />
           <p className="text-gray-600 dark:text-gray-400 text-lg">Carregando dados...</p>
@@ -572,7 +572,7 @@ const EditUser = () => {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm dark:shadow-lg border border-gray-100 dark:border-gray-700 p-4 sm:p-8"
+          className="bg-white dark:bg-yt-surface rounded-2xl shadow-sm dark:shadow-lg border border-gray-100 dark:border-yt-border p-4 sm:p-8"
         >
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 space-y-4 lg:space-y-0">
             <div>            
@@ -588,7 +588,7 @@ const EditUser = () => {
             <div className="flex items-center space-x-4">
               <span className={`px-4 py-2 rounded-full text-sm font-medium flex items-center ${
                 formData.active
-                  ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+                  ? 'bg-green-100 dark:bg-primary-900/30 text-green-800 dark:text-green-300'
                   : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
               }`}>
                 {formData.active ? (
@@ -615,7 +615,7 @@ const EditUser = () => {
           animate="visible"
         >
           {/* Profile Type Selection */}
-          <motion.div variants={itemVariants} className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-lg border border-gray-100 dark:border-gray-700">
+          <motion.div variants={itemVariants} className="bg-white dark:bg-yt-surface rounded-2xl p-6 shadow-sm dark:shadow-lg border border-gray-100 dark:border-yt-border">
             <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-6 flex items-center">
               <Shield className="h-5 w-5 mr-2 text-primary-500 dark:text-primary-400" />
               Tipo de Perfil
@@ -647,8 +647,8 @@ const EditUser = () => {
                   label: 'Diretor',
                   description: 'Acesso completo ao sistema',
                   icon: Sparkles,
-                  gradient: 'from-gray-700 to-gray-800 dark:from-gray-600 dark:to-gray-700',
-                  selectedBg: 'bg-gray-50 dark:bg-gray-900/20',
+                  gradient: 'from-gray-700 to-gray-800 dark:from-gray-600 dark:to-yt-elevated',
+                  selectedBg: 'bg-gray-50 dark:bg-yt-bg/20',
                   selectedBorder: 'border-gray-500 dark:border-gray-400',
                   selectedText: 'text-naue-black dark:text-gray-300 font-medium'
                 }
@@ -658,7 +658,7 @@ const EditUser = () => {
                   className={`relative flex flex-col p-6 rounded-lg border cursor-pointer transition-all transform hover:scale-[1.02] ${
                     formData.profileType === type.value 
                       ? `${type.selectedBg} ${type.selectedBorder} shadow-lg`
-                      : 'bg-gray-50/50 dark:bg-gray-700/20 border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                      : 'bg-gray-50/50 dark:bg-yt-elevated/20 border-gray-200 dark:border-yt-border hover:border-gray-300 dark:hover:border-gray-500'
                   }`}
                 >
                   <input
@@ -679,7 +679,7 @@ const EditUser = () => {
                       <type.icon className="h-6 w-6 text-white" />
                     </div>
                     {formData.profileType === type.value && (
-                      <div className="bg-white dark:bg-gray-700 rounded-full p-1.5 shadow-md">
+                      <div className="bg-white dark:bg-yt-elevated rounded-full p-1.5 shadow-md">
                         <Check className="h-4 w-4 text-secondary-600 dark:text-secondary-400" />
                       </div>
                     )}
@@ -694,7 +694,7 @@ const EditUser = () => {
           </motion.div>
 
           {/* Contract Type Selection */}
-          <motion.div variants={itemVariants} className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-lg border border-gray-100 dark:border-gray-700">
+          <motion.div variants={itemVariants} className="bg-white dark:bg-yt-surface rounded-2xl p-6 shadow-sm dark:shadow-lg border border-gray-100 dark:border-yt-border">
             <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-6 flex items-center">
               <FileText className="h-5 w-5 mr-2 text-primary-500 dark:text-primary-400" />
               Tipo de Contrato
@@ -727,7 +727,7 @@ const EditUser = () => {
                   className={`relative flex flex-col p-6 rounded-lg border cursor-pointer transition-all transform hover:scale-[1.02] ${
                     formData.contractType === type.value 
                       ? `${type.selectedBg} ${type.selectedBorder} shadow-lg`
-                      : 'bg-gray-50/50 dark:bg-gray-700/20 border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                      : 'bg-gray-50/50 dark:bg-yt-elevated/20 border-gray-200 dark:border-yt-border hover:border-gray-300 dark:hover:border-gray-500'
                   }`}
                 >
                   <input
@@ -746,7 +746,7 @@ const EditUser = () => {
                       <type.icon className="h-6 w-6 text-white" />
                     </div>
                     {formData.contractType === type.value && (
-                      <div className="bg-white dark:bg-gray-700 rounded-full p-1.5 shadow-md">
+                      <div className="bg-white dark:bg-yt-elevated rounded-full p-1.5 shadow-md">
                         <Check className="h-4 w-4 text-secondary-600 dark:text-secondary-400" />
                       </div>
                     )}
@@ -761,21 +761,21 @@ const EditUser = () => {
           </motion.div>
 
           {/* Basic Information */}
-          <motion.div variants={itemVariants} className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-lg border border-gray-100 dark:border-gray-700">
+          <motion.div variants={itemVariants} className="bg-white dark:bg-yt-surface rounded-2xl p-6 shadow-sm dark:shadow-lg border border-gray-100 dark:border-yt-border">
             <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-6 flex items-center">
               <User className="h-5 w-5 mr-2 text-primary-500 dark:text-primary-400" />
               Informações Básicas
             </h3>
             
             {/* Profile Image */}
-            <div className="mb-6 pb-6 border-b border-gray-100 dark:border-gray-700">
+            <div className="mb-6 pb-6 border-b border-gray-100 dark:border-yt-border">
               <label className="block text-sm font-medium text-naue-black dark:text-gray-300 font-medium mb-4">
                 Foto do Perfil
               </label>
               <div className="flex items-center space-x-4">
                 <div className="relative">
                   <div 
-                    className="h-24 w-24 rounded-2xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors group border-2 border-dashed border-gray-300 dark:border-gray-600"
+                    className="h-24 w-24 rounded-2xl bg-gray-100 dark:bg-yt-elevated flex items-center justify-center overflow-hidden cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors group border-2 border-dashed border-gray-300 dark:border-yt-border"
                     onClick={() => fileInputRef.current?.click()}
                   >
                     {formData.profileImage ? (
@@ -821,10 +821,10 @@ const EditUser = () => {
                 </label>
                 <input
                   type="text"
-                  className={`w-full px-4 py-3 rounded-lg border transition-all bg-white dark:bg-gray-700 text-naue-black dark:text-gray-100 placeholder-naue-text-gray dark:placeholder-gray-500 ${
+                  className={`w-full px-4 py-3 rounded-lg border transition-all bg-white dark:bg-yt-elevated text-naue-black dark:text-gray-100 placeholder-naue-text-gray dark:placeholder-gray-500 ${
                     formErrors.name 
                       ? 'border-status-danger dark:border-red-600 focus:border-status-danger focus:ring-2 focus:ring-status-danger' 
-                      : 'border-naue-border-gray dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 focus:border-primary dark:focus:border-primary-400 focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-400'
+                      : 'border-naue-border-gray dark:border-yt-border hover:border-gray-300 dark:hover:border-gray-500 focus:border-primary dark:focus:border-primary-400 focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-400'
                   }`}
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -846,7 +846,7 @@ const EditUser = () => {
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
                   <input
                     type="email"
-                    className="w-full pl-12 pr-4 py-3 rounded-lg border transition-all bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 placeholder-gray-400 dark:placeholder-gray-500 border-gray-200 dark:border-gray-600 cursor-not-allowed"
+                    className="w-full pl-12 pr-4 py-3 rounded-lg border transition-all bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 placeholder-gray-400 dark:placeholder-gray-500 border-gray-200 dark:border-yt-border cursor-not-allowed"
                     value={formData.email}
                     disabled
                     title="Email não pode ser alterado"
@@ -866,10 +866,10 @@ const EditUser = () => {
                   <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
                   <input
                     type="tel"
-                    className={`w-full pl-12 pr-4 py-3 rounded-lg border transition-all bg-white dark:bg-gray-700 text-naue-black dark:text-gray-100 placeholder-naue-text-gray dark:placeholder-gray-500 ${
+                    className={`w-full pl-12 pr-4 py-3 rounded-lg border transition-all bg-white dark:bg-yt-elevated text-naue-black dark:text-gray-100 placeholder-naue-text-gray dark:placeholder-gray-500 ${
                       formErrors.phone 
                         ? 'border-status-danger dark:border-red-600 focus:border-status-danger focus:ring-2 focus:ring-status-danger' 
-                        : 'border-naue-border-gray dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 focus:border-primary dark:focus:border-primary-400 focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-400'
+                        : 'border-naue-border-gray dark:border-yt-border hover:border-gray-300 dark:hover:border-gray-500 focus:border-primary dark:focus:border-primary-400 focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-400'
                     }`}
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: formatPhone(e.target.value) })}
@@ -892,10 +892,10 @@ const EditUser = () => {
                   <CalendarDays className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
                   <input
                     type="date"
-                    className={`w-full pl-12 pr-4 py-3 rounded-lg border transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                    className={`w-full pl-12 pr-4 py-3 rounded-lg border transition-all bg-white dark:bg-yt-elevated text-gray-900 dark:text-gray-100 ${
                       formErrors.birthDate 
                         ? 'border-status-danger dark:border-red-600 focus:border-status-danger focus:ring-2 focus:ring-status-danger' 
-                        : 'border-naue-border-gray dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 focus:border-primary dark:focus:border-primary-400 focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-400'
+                        : 'border-naue-border-gray dark:border-yt-border hover:border-gray-300 dark:hover:border-gray-500 focus:border-primary dark:focus:border-primary-400 focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-400'
                     }`}
                     value={formData.birthDate}
                     onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
@@ -917,10 +917,10 @@ const EditUser = () => {
                   <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
                   <input
                     type="date"
-                    className={`w-full pl-12 pr-4 py-3 rounded-lg border transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                    className={`w-full pl-12 pr-4 py-3 rounded-lg border transition-all bg-white dark:bg-yt-elevated text-gray-900 dark:text-gray-100 ${
                       formErrors.joinDate 
                         ? 'border-status-danger dark:border-red-600 focus:border-status-danger focus:ring-2 focus:ring-status-danger' 
-                        : 'border-naue-border-gray dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 focus:border-primary dark:focus:border-primary-400 focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-400'
+                        : 'border-naue-border-gray dark:border-yt-border hover:border-gray-300 dark:hover:border-gray-500 focus:border-primary dark:focus:border-primary-400 focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-400'
                     }`}
                     value={formData.joinDate}
                     onChange={(e) => setFormData({ ...formData, joinDate: e.target.value })}
@@ -938,7 +938,7 @@ const EditUser = () => {
           </motion.div>
 
           {/* Career Information */}
-          <motion.div variants={itemVariants} className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-lg border border-gray-100 dark:border-gray-700">
+          <motion.div variants={itemVariants} className="bg-white dark:bg-yt-surface rounded-2xl p-6 shadow-sm dark:shadow-lg border border-gray-100 dark:border-yt-border">
             <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-6 flex items-center">
               <TrendingUp className="h-5 w-5 mr-2 text-primary-500 dark:text-primary-400" />
               Informações de Carreira
@@ -953,10 +953,10 @@ const EditUser = () => {
                   <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500 pointer-events-none" />
                   <select
-                    className={`w-full pl-12 pr-10 py-3 rounded-lg border transition-all appearance-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                    className={`w-full pl-12 pr-10 py-3 rounded-lg border transition-all appearance-none bg-white dark:bg-yt-elevated text-gray-900 dark:text-gray-100 ${
                       formErrors.departmentId 
                         ? 'border-status-danger dark:border-red-600 focus:border-status-danger focus:ring-2 focus:ring-status-danger' 
-                        : 'border-naue-border-gray dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 focus:border-primary dark:focus:border-primary-400 focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-400'
+                        : 'border-naue-border-gray dark:border-yt-border hover:border-gray-300 dark:hover:border-gray-500 focus:border-primary dark:focus:border-primary-400 focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-400'
                     }`}
                     value={formData.departmentId}
                     onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
@@ -984,10 +984,10 @@ const EditUser = () => {
                   <Route className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500 pointer-events-none" />
                   <select
-                    className={`w-full pl-12 pr-10 py-3 rounded-lg border transition-all appearance-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                    className={`w-full pl-12 pr-10 py-3 rounded-lg border transition-all appearance-none bg-white dark:bg-yt-elevated text-gray-900 dark:text-gray-100 ${
                       formErrors.trackId 
                         ? 'border-status-danger dark:border-red-600 focus:border-status-danger focus:ring-2 focus:ring-status-danger' 
-                        : 'border-naue-border-gray dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 focus:border-primary dark:focus:border-primary-400 focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-400'
+                        : 'border-naue-border-gray dark:border-yt-border hover:border-gray-300 dark:hover:border-gray-500 focus:border-primary dark:focus:border-primary-400 focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-400'
                     }`}
                     value={formData.trackId}
                     onChange={(e) => setFormData({ ...formData, trackId: e.target.value })}
@@ -1017,10 +1017,10 @@ const EditUser = () => {
                   <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500 pointer-events-none" />
                   <select
-                    className={`w-full pl-12 pr-10 py-3 rounded-lg border transition-all appearance-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                    className={`w-full pl-12 pr-10 py-3 rounded-lg border transition-all appearance-none bg-white dark:bg-yt-elevated text-gray-900 dark:text-gray-100 ${
                       formErrors.positionId 
                         ? 'border-status-danger dark:border-red-600 focus:border-status-danger focus:ring-2 focus:ring-status-danger' 
-                        : 'border-naue-border-gray dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 focus:border-primary dark:focus:border-primary-400 focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-400'
+                        : 'border-naue-border-gray dark:border-yt-border hover:border-gray-300 dark:hover:border-gray-500 focus:border-primary dark:focus:border-primary-400 focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-400'
                     }`}
                     value={formData.positionId}
                     onChange={(e) => setFormData({ ...formData, positionId: e.target.value })}
@@ -1055,10 +1055,10 @@ const EditUser = () => {
                   <Layers className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500 pointer-events-none" />
                   <select
-                    className={`w-full pl-12 pr-10 py-3 rounded-lg border transition-all appearance-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                    className={`w-full pl-12 pr-10 py-3 rounded-lg border transition-all appearance-none bg-white dark:bg-yt-elevated text-gray-900 dark:text-gray-100 ${
                       formErrors.internLevel 
                         ? 'border-status-danger dark:border-red-600 focus:border-status-danger focus:ring-2 focus:ring-status-danger' 
-                        : 'border-naue-border-gray dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 focus:border-primary dark:focus:border-primary-400 focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-400'
+                        : 'border-naue-border-gray dark:border-yt-border hover:border-gray-300 dark:hover:border-gray-500 focus:border-primary dark:focus:border-primary-400 focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-400'
                     }`}
                     value={formData.internLevel}
                     onChange={(e) => setFormData({ ...formData, internLevel: e.target.value as 'A' | 'B' | 'C' | 'D' | 'E' })}
@@ -1095,7 +1095,7 @@ const EditUser = () => {
 
           {/* Team Allocation */}
           {formData.profileType !== 'director' && (
-            <motion.div variants={itemVariants} className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-lg border border-gray-100 dark:border-gray-700">
+            <motion.div variants={itemVariants} className="bg-white dark:bg-yt-surface rounded-2xl p-6 shadow-sm dark:shadow-lg border border-gray-100 dark:border-yt-border">
               <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-6 flex items-center">
                 <Users className="h-5 w-5 mr-2 text-primary-500 dark:text-primary-400" />
                 Alocação em Times *
@@ -1105,11 +1105,11 @@ const EditUser = () => {
                   <label key={team.id} className={`flex items-center p-4 rounded-xl cursor-pointer transition-all group ${
                     formData.teamIds.includes(team.id)
                       ? 'bg-primary-50 dark:bg-primary-900/20 border-2 border-primary-500 dark:border-primary-400'
-                      : 'bg-gray-50 dark:bg-gray-700/30 border-2 border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                      : 'bg-gray-50 dark:bg-yt-elevated/30 border-2 border-gray-200 dark:border-yt-border hover:border-gray-300 dark:hover:border-gray-500'
                   }`}>
                     <input
                       type="checkbox"
-                      className="w-5 h-5 rounded border-gray-300 dark:border-gray-600 text-primary-600 dark:text-primary-500 focus:ring-primary-500 dark:focus:ring-primary-400"
+                      className="w-5 h-5 rounded border-gray-300 dark:border-yt-border text-primary-600 dark:text-primary-500 focus:ring-primary-500 dark:focus:ring-primary-400"
                       checked={formData.teamIds.includes(team.id)}
                       onChange={(e) => {
                         if (e.target.checked) {
@@ -1144,7 +1144,7 @@ const EditUser = () => {
 
           {/* Hierarchy */}
           {(formData.profileType === 'regular' || formData.profileType === 'leader') && (
-            <motion.div variants={itemVariants} className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-lg border border-gray-100 dark:border-gray-700">
+            <motion.div variants={itemVariants} className="bg-white dark:bg-yt-surface rounded-2xl p-6 shadow-sm dark:shadow-lg border border-gray-100 dark:border-yt-border">
               <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-6 flex items-center">
                 <GitBranch className="h-5 w-5 mr-2 text-primary-500 dark:text-primary-400" />
                 Hierarquia
@@ -1157,10 +1157,10 @@ const EditUser = () => {
                   <UserCog className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500 pointer-events-none" />
                   <select
-                    className={`w-full pl-12 pr-10 py-3 rounded-lg border transition-all appearance-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                    className={`w-full pl-12 pr-10 py-3 rounded-lg border transition-all appearance-none bg-white dark:bg-yt-elevated text-gray-900 dark:text-gray-100 ${
                       formErrors.reportsTo 
                         ? 'border-status-danger dark:border-red-600 focus:border-status-danger focus:ring-2 focus:ring-status-danger' 
-                        : 'border-naue-border-gray dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 focus:border-primary dark:focus:border-primary-400 focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-400'
+                        : 'border-naue-border-gray dark:border-yt-border hover:border-gray-300 dark:hover:border-gray-500 focus:border-primary dark:focus:border-primary-400 focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-400'
                     }`}
                     value={formData.reportsTo}
                     onChange={(e) => setFormData({ ...formData, reportsTo: e.target.value })}
@@ -1203,7 +1203,7 @@ const EditUser = () => {
           )}
 
           {/* Account Settings */}
-          <motion.div variants={itemVariants} className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-lg border border-gray-100 dark:border-gray-700">
+          <motion.div variants={itemVariants} className="bg-white dark:bg-yt-surface rounded-2xl p-6 shadow-sm dark:shadow-lg border border-gray-100 dark:border-yt-border">
             <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-6 flex items-center">
               <Lock className="h-5 w-5 mr-2 text-primary-500 dark:text-primary-400" />
               Configurações da Conta
@@ -1211,7 +1211,7 @@ const EditUser = () => {
             
             <div className="space-y-4">
               {/* Active Status Toggle */}
-              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-yt-elevated/50 rounded-xl">
                 <div>
                   <h4 className="font-medium text-gray-900 dark:text-gray-100">Status da Conta</h4>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -1234,7 +1234,7 @@ const EditUser = () => {
               </div>
 
               {/* Password Change */}
-              <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+              <div className="p-4 bg-gray-50 dark:bg-yt-elevated/50 rounded-xl">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h4 className="font-medium text-gray-900 dark:text-gray-100">Alterar Senha</h4>
@@ -1268,10 +1268,10 @@ const EditUser = () => {
                       </label>
                       <input
                         type="password"
-                        className={`w-full px-4 py-3 text-base rounded-lg border transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                        className={`w-full px-4 py-3 text-base rounded-lg border transition-all bg-white dark:bg-yt-elevated text-gray-900 dark:text-gray-100 ${
                           formErrors.password 
                             ? 'border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20' 
-                            : 'border-gray-200 dark:border-gray-600'
+                            : 'border-gray-200 dark:border-yt-border'
                         }`}
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
@@ -1291,10 +1291,10 @@ const EditUser = () => {
                       </label>
                       <input
                         type="password"
-                        className={`w-full px-4 py-3 text-base rounded-lg border transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                        className={`w-full px-4 py-3 text-base rounded-lg border transition-all bg-white dark:bg-yt-elevated text-gray-900 dark:text-gray-100 ${
                           formErrors.confirmPassword 
                             ? 'border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20' 
-                            : 'border-gray-200 dark:border-gray-600'
+                            : 'border-gray-200 dark:border-yt-border'
                         }`}
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
@@ -1316,7 +1316,7 @@ const EditUser = () => {
 
         {/* Action Buttons */}
         <motion.div 
-          className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm dark:shadow-lg border border-gray-100 dark:border-gray-700 p-4 sm:p-6"
+          className="bg-white dark:bg-yt-surface rounded-2xl shadow-sm dark:shadow-lg border border-gray-100 dark:border-yt-border p-4 sm:p-6"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}

@@ -343,14 +343,14 @@ const UserManagement = () => {
         layout
         variants={itemVariants}
         whileHover={{ y: -4, transition: { duration: 0.2 } }}
-        className="bg-naue-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-md dark:shadow-lg border border-naue-border-gray dark:border-gray-700 overflow-hidden dark:hover:shadow-xl hover:border-primary-200 dark:hover:border-primary-600 transition-all duration-300 group"
+        className="bg-naue-white dark:bg-yt-surface rounded-2xl shadow-sm hover:shadow-md dark:shadow-lg border border-naue-border-gray dark:border-yt-border overflow-hidden dark:hover:shadow-xl hover:border-primary-200 dark:hover:border-primary-600 transition-all duration-300 group"
       >
         <div className={`h-2 bg-gradient-to-r ${
           user.is_director 
             ? 'from-stone-800 to-stone-900 dark:from-stone-800 dark:to-stone-900' 
             : user.is_leader 
               ? 'from-primary-900 to-primary-800 dark:from-primary-900 dark:to-primary-800' 
-              : 'from-gray-600 to-gray-700 dark:from-gray-600 dark:to-gray-700'
+              : 'from-gray-600 to-gray-700 dark:from-gray-600 dark:to-yt-elevated'
         }`} />
         
         <div className="p-6">
@@ -375,12 +375,12 @@ const UserManagement = () => {
                   </div>
                 )}
                 {user.is_director && (
-                  <div className="absolute -bottom-1 -right-1 bg-white dark:bg-gray-700 rounded-full p-1.5 shadow-lg">
+                  <div className="absolute -bottom-1 -right-1 bg-white dark:bg-yt-elevated rounded-full p-1.5 shadow-lg">
                     <Shield className="h-3.5 w-3.5 text-naue-black dark:text-gray-300 font-medium" />
                   </div>
                 )}
                 {user.is_leader && !user.is_director && (
-                  <div className="absolute -bottom-1 -right-1 bg-white dark:bg-gray-700 rounded-full p-1.5 shadow-lg">
+                  <div className="absolute -bottom-1 -right-1 bg-white dark:bg-yt-elevated rounded-full p-1.5 shadow-lg">
                     <Crown className="h-3.5 w-3.5 text-stone-800 dark:text-stone-700" />
                   </div>
                 )}
@@ -394,7 +394,7 @@ const UserManagement = () => {
                 <div className="mt-2">
                   <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
                     user.is_director
-                      ? 'bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-600'
+                      ? 'bg-gradient-to-r from-gray-100 to-gray-200 dark:from-yt-elevated dark:to-yt-elevated text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-yt-border'
                       : 'bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-900/20 dark:to-primary-800/20 text-primary-800 dark:text-primary-300 border border-primary-200 dark:border-primary-700'
                   }`}>
                     {user.is_director ? 'Diretor' : 'Líder'}
@@ -470,7 +470,7 @@ const UserManagement = () => {
           </div>
 
           {(leader || subordinates.length > 0) && (
-            <div className="pt-4 mt-4 border-t border-gray-100 dark:border-gray-700">
+            <div className="pt-4 mt-4 border-t border-gray-100 dark:border-yt-border">
               {leader && (
                 <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 mb-2 group/item hover:text-primary-900 dark:hover:text-primary-700 transition-colors">
                   <GitBranch className="h-4 w-4 mr-3 text-gray-400 dark:text-gray-500 group-hover/item:text-primary-900 dark:group-hover/item:text-primary-700" />
@@ -488,12 +488,12 @@ const UserManagement = () => {
           )}
 
           {userTeams.length > 0 && (
-            <div className="pt-4 mt-4 border-t border-gray-100 dark:border-gray-700">
+            <div className="pt-4 mt-4 border-t border-gray-100 dark:border-yt-border">
               <div className="flex flex-wrap gap-2">
                 {userTeams.map((team) => (
                   <span
                     key={team.id}
-                    className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900/20 dark:to-gray-800/20 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
+                    className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900/20 dark:to-gray-800/20 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-yt-border"
                   >
                     <UsersIcon className="h-3 w-3 mr-1.5" />
                     {team.name}
@@ -524,7 +524,7 @@ const UserManagement = () => {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-naue-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-md dark:shadow-lg border border-naue-border-gray dark:border-gray-700 p-8"
+          className="bg-naue-white dark:bg-yt-surface rounded-2xl shadow-sm hover:shadow-md dark:shadow-lg border border-naue-border-gray dark:border-yt-border p-8"
         >
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 space-y-4 lg:space-y-0">
             <div className="flex items-center space-x-4">
@@ -557,7 +557,7 @@ const UserManagement = () => {
             initial="hidden"
             animate="visible"
           >
-            <motion.div variants={itemVariants} className="relative overflow-hidden bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 dark:from-gray-700 dark:via-gray-800 dark:to-gray-900 rounded-xl p-4 text-center shadow-lg">
+            <motion.div variants={itemVariants} className="relative overflow-hidden bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 dark:from-yt-elevated dark:via-gray-800 dark:to-gray-900 rounded-xl p-4 text-center shadow-lg">
               <div className="relative z-10">
                 <p className="text-2xl font-bold text-white">{stats.totalUsers}</p>
                 <p className="text-sm text-gray-300 font-medium">Total</p>
@@ -591,15 +591,15 @@ const UserManagement = () => {
           </motion.div>
         </motion.div>
 
-        <div className="bg-naue-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-md dark:shadow-lg border border-naue-border-gray dark:border-gray-700 p-6">
+        <div className="bg-naue-white dark:bg-yt-surface rounded-2xl shadow-sm hover:shadow-md dark:shadow-lg border border-naue-border-gray dark:border-yt-border p-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 space-y-4 lg:space-y-0">
             <div className="flex items-center space-x-3">
-              <div className="flex items-center bg-gray-100/80 dark:bg-gray-700/50 backdrop-blur-sm rounded-xl p-1.5">
+              <div className="flex items-center bg-gray-100/80 dark:bg-yt-elevated/50 backdrop-blur-sm rounded-xl p-1.5">
                 <button
                   onClick={() => setViewMode('grid')}
                   className={`p-2 rounded-lg transition-all ${
                     viewMode === 'grid'
-                      ? 'bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm dark:shadow-lg'
+                      ? 'bg-white dark:bg-yt-elevated text-primary-600 dark:text-primary-400 shadow-sm dark:shadow-lg'
                       : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
                   }`}
                   title="Visualização em grade"
@@ -610,7 +610,7 @@ const UserManagement = () => {
                   onClick={() => setViewMode('list')}
                   className={`p-2 rounded-lg transition-all ${
                     viewMode === 'list'
-                      ? 'bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm dark:shadow-lg'
+                      ? 'bg-white dark:bg-yt-elevated text-primary-600 dark:text-primary-400 shadow-sm dark:shadow-lg'
                       : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
                   }`}
                   title="Visualização em lista"
@@ -624,17 +624,17 @@ const UserManagement = () => {
                 className={`p-2.5 rounded-xl transition-all ${
                   showFilters 
                     ? 'bg-primary-100 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400' 
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    : 'bg-gray-100 dark:bg-yt-elevated text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
                 <Filter className="h-4 w-4" />
               </button>
 
               <div className="relative group">
-                <button className="p-2.5 rounded-lg bg-naue-light-gray dark:bg-gray-700 text-naue-text-gray dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                <button className="p-2.5 rounded-lg bg-naue-light-gray dark:bg-yt-elevated text-naue-text-gray dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
                   <MoreVertical className="h-4 w-4" />
                 </button>
-                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-xl dark:shadow-2xl border border-gray-100 dark:border-gray-700 py-2 z-20 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-yt-surface rounded-xl shadow-xl dark:shadow-2xl border border-gray-100 dark:border-yt-border py-2 z-20 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
                   <button
                     onClick={() => handleQuickAction('import')}
                     className="w-full px-4 py-2.5 text-left text-sm text-naue-black dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center space-x-3 transition-colors"
@@ -651,7 +651,7 @@ const UserManagement = () => {
                       <span>Exportar lista</span>
                     </button>
                   </UIGuard>
-                  <div className="border-t border-gray-100 dark:border-gray-700 my-2" />
+                  <div className="border-t border-gray-100 dark:border-yt-border my-2" />
                   <UIGuard show="showBulkActionsButton">
                     <button
                       onClick={() => handleQuickAction('bulk')}
@@ -674,7 +674,7 @@ const UserManagement = () => {
                 placeholder="Buscar usuários..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 rounded-xl border-gray-200 dark:border-gray-600 focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 bg-gray-50/50 dark:bg-gray-700/50 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100"
+                className="w-full pl-12 pr-4 py-3 rounded-xl border-gray-200 dark:border-yt-border focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 bg-gray-50/50 dark:bg-yt-elevated/50 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100"
               />
             </div>
 
@@ -686,7 +686,7 @@ const UserManagement = () => {
                   exit={{ opacity: 0, height: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-6 bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-700/30 dark:to-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-700">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-6 bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-yt-elevated/30 dark:to-yt-elevated/50 rounded-xl border border-gray-200 dark:border-yt-border">
                     <div>
                       <label className="block text-sm font-semibold text-naue-black dark:text-gray-300 font-medium mb-2">
                         Departamento
@@ -694,7 +694,7 @@ const UserManagement = () => {
                       <select
                         value={selectedDepartment}
                         onChange={(e) => setSelectedDepartment(e.target.value)}
-                        className="w-full rounded-xl border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        className="w-full rounded-xl border-gray-200 dark:border-yt-border bg-white dark:bg-yt-elevated text-gray-900 dark:text-gray-100"
                       >
                         <option value="">Todos</option>
                         {departments.map(dept => (
@@ -710,7 +710,7 @@ const UserManagement = () => {
                       <select
                         value={selectedTeam}
                         onChange={(e) => setSelectedTeam(e.target.value)}
-                        className="w-full rounded-xl border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        className="w-full rounded-xl border-gray-200 dark:border-yt-border bg-white dark:bg-yt-elevated text-gray-900 dark:text-gray-100"
                       >
                         <option value="">Todos</option>
                         {teams.map(team => (
@@ -726,7 +726,7 @@ const UserManagement = () => {
                       <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value as any)}
-                        className="w-full rounded-xl border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        className="w-full rounded-xl border-gray-200 dark:border-yt-border bg-white dark:bg-yt-elevated text-gray-900 dark:text-gray-100"
                       >
                         <option value="name">Nome</option>
                         <option value="date">Data de entrada</option>
@@ -740,7 +740,7 @@ const UserManagement = () => {
                           type="checkbox"
                           checked={showOnlyLeaders}
                           onChange={(e) => setShowOnlyLeaders(e.target.checked)}
-                          className="rounded border-gray-300 dark:border-gray-600 text-primary-600 dark:text-primary-500 focus:ring-primary-500 dark:focus:ring-primary-400 mr-3"
+                          className="rounded border-gray-300 dark:border-yt-border text-primary-600 dark:text-primary-500 focus:ring-primary-500 dark:focus:ring-primary-400 mr-3"
                         />
                         <span className="text-sm font-medium text-naue-black dark:text-gray-300 font-medium">Apenas líderes</span>
                       </label>
@@ -749,7 +749,7 @@ const UserManagement = () => {
                           type="checkbox"
                           checked={showInactiveUsers}
                           onChange={(e) => setShowInactiveUsers(e.target.checked)}
-                          className="rounded border-gray-300 dark:border-gray-600 text-red-600 dark:text-red-500 focus:ring-red-500 dark:focus:ring-red-400 mr-3"
+                          className="rounded border-gray-300 dark:border-yt-border text-red-600 dark:text-red-500 focus:ring-red-500 dark:focus:ring-red-400 mr-3"
                         />
                         <span className="text-sm font-medium text-naue-black dark:text-gray-300 font-medium">Usuários desativados</span>
                       </label>
@@ -785,7 +785,7 @@ const UserManagement = () => {
               animate={{ opacity: 1, scale: 1 }}
               className="text-center py-12"
             >
-              <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 mb-6">
+              <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-yt-elevated dark:to-gray-800 mb-6">
                 <UserX className="h-10 w-10 text-gray-400 dark:text-gray-500" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Nenhum usuário encontrado</h3>
@@ -816,7 +816,7 @@ const UserManagement = () => {
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-naue-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-md hover:shadow-lg border border-naue-border-gray dark:border-gray-700"
+                className="bg-naue-white dark:bg-yt-surface rounded-2xl p-6 max-w-sm w-full mx-4 shadow-md hover:shadow-lg border border-naue-border-gray dark:border-yt-border"
                 onClick={(e) => e.stopPropagation()}
               >
                 <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6 flex items-center">
@@ -838,7 +838,7 @@ const UserManagement = () => {
 
                   <button
                     onClick={() => handleExport('notion')}
-                    className="w-full p-4 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700/20 dark:to-gray-600/20 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-600/30 dark:hover:to-gray-500/30 rounded-xl border border-gray-200 dark:border-gray-700 text-naue-black dark:text-gray-300 font-medium font-medium text-left flex items-center space-x-3 transition-all"
+                    className="w-full p-4 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-yt-elevated/20 dark:to-yt-elevated/20 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-600/30 dark:hover:to-gray-500/30 rounded-xl border border-gray-200 dark:border-yt-border text-naue-black dark:text-gray-300 font-medium font-medium text-left flex items-center space-x-3 transition-all"
                   >
                     <FileText className="h-5 w-5" />
                     <div className="flex-1">
@@ -861,7 +861,7 @@ const UserManagement = () => {
 
                 <button
                   onClick={() => setShowExportMenu(false)}
-                  className="w-full mt-4 p-3 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  className="w-full mt-4 p-3 rounded-xl border border-gray-200 dark:border-yt-border text-gray-600 dark:text-gray-400 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   Cancelar
                 </button>

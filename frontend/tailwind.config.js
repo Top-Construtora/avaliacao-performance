@@ -2,6 +2,11 @@
 export default {
   darkMode: 'class',
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  safelist: [
+    // YouTube-style dark mode
+    { pattern: /bg-yt-(bg|surface|elevated)/, variants: ['dark'] },
+    { pattern: /border-yt-border/, variants: ['dark'] },
+  ],
   theme: {
     extend: {
       fontFamily: {
@@ -70,6 +75,13 @@ export default {
           900: '#064c3a',
         },
         'dark-navy': '#003b2b',
+        // YouTube-style dark mode backgrounds
+        'yt': {
+          bg: '#0f0f0f',
+          surface: '#212121',
+          elevated: '#272727',
+          border: '#3f3f3f',
+        },
         'naue-green': '#003b2b',
       },
       boxShadow: {

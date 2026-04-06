@@ -266,14 +266,14 @@ const TeamManagement = () => {
         layout
         variants={itemVariants}
         whileHover={{ y: -4, transition: { duration: 0.2 } }}
-        className="bg-naue-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-md dark:shadow-lg border border-naue-border-gray dark:border-gray-900 overflow-hidden dark:hover:shadow-xl hover:border-primary-200 dark:hover:border-primary-800 transition-all duration-300 group"
+        className="bg-naue-white dark:bg-yt-surface rounded-2xl shadow-sm hover:shadow-md dark:shadow-lg border border-naue-border-gray dark:border-gray-900 overflow-hidden dark:hover:shadow-xl hover:border-primary-200 dark:hover:border-primary-800 transition-all duration-300 group"
       >
-        <div className="h-2 bg-gradient-to-r from-gray-600 to-gray-800 dark:from-gray-700 dark:to-gray-900" />
+        <div className="h-2 bg-gradient-to-r from-gray-600 to-gray-800 dark:from-yt-elevated dark:to-gray-900" />
         
         <div className="p-6">
           <div className="flex items-start justify-between gap-2 mb-4">
             <div className="flex items-center space-x-4 flex-shrink-0">
-              <div className="p-3 rounded-2xl bg-gradient-to-br from-gray-600 to-gray-700 dark:from-gray-700 dark:to-gray-800 shadow-md dark:shadow-lg">
+              <div className="p-3 rounded-2xl bg-gradient-to-br from-gray-600 to-gray-700 dark:from-yt-elevated dark:to-gray-800 shadow-md dark:shadow-lg">
                 <UsersIcon className="h-6 w-6 text-white" />
               </div>
             </div>
@@ -379,7 +379,7 @@ const TeamManagement = () => {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-naue-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-md dark:shadow-lg border border-naue-border-gray dark:border-gray-900 p-8"
+          className="bg-naue-white dark:bg-yt-surface rounded-2xl shadow-sm hover:shadow-md dark:shadow-lg border border-naue-border-gray dark:border-gray-900 p-8"
         >
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 space-y-4 lg:space-y-0">
             <div className="flex items-center space-x-4">
@@ -443,15 +443,15 @@ const TeamManagement = () => {
           </motion.div>
         </motion.div>
 
-        <div className="bg-naue-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-md dark:shadow-lg border border-naue-border-gray dark:border-gray-900 p-6">
+        <div className="bg-naue-white dark:bg-yt-surface rounded-2xl shadow-sm hover:shadow-md dark:shadow-lg border border-naue-border-gray dark:border-gray-900 p-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 space-y-4 lg:space-y-0">
             <div className="flex items-center space-x-3">
-              <div className="flex items-center bg-gray-100/80 dark:bg-gray-900/50 backdrop-blur-sm rounded-xl p-1.5">
+              <div className="flex items-center bg-gray-100/80 dark:bg-yt-bg/50 backdrop-blur-sm rounded-xl p-1.5">
                 <button
                   onClick={() => setViewMode('grid')}
                   className={`p-2 rounded-lg transition-all ${
                     viewMode === 'grid'
-                      ? 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 shadow-sm dark:shadow-lg'
+                      ? 'bg-white dark:bg-yt-bg text-gray-700 dark:text-gray-300 shadow-sm dark:shadow-lg'
                       : 'text-gray-400 dark:text-gray-700 hover:text-gray-800 dark:hover:text-gray-300'
                   }`}
                   title="Visualização em grade"
@@ -462,7 +462,7 @@ const TeamManagement = () => {
                   onClick={() => setViewMode('list')}
                   className={`p-2 rounded-lg transition-all ${
                     viewMode === 'list'
-                      ? 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 shadow-sm dark:shadow-lg'
+                      ? 'bg-white dark:bg-yt-bg text-gray-700 dark:text-gray-300 shadow-sm dark:shadow-lg'
                       : 'text-gray-400 dark:text-gray-700 hover:text-gray-800 dark:hover:text-gray-300'
                   }`}
                   title="Visualização em lista"
@@ -475,18 +475,18 @@ const TeamManagement = () => {
                 onClick={() => setShowFilters(!showFilters)}
                 className={`p-2.5 rounded-xl transition-all ${
                   showFilters 
-                    ? 'bg-gray-200 dark:bg-gray-700/50 text-gray-800 dark:text-gray-300' 
-                    : 'bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800'
+                    ? 'bg-gray-200 dark:bg-yt-elevated/50 text-gray-800 dark:text-gray-300' 
+                    : 'bg-gray-100 dark:bg-yt-bg text-gray-800 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800'
                 }`}
               >
                 <Filter className="h-4 w-4" />
               </button>
 
               <div className="relative group">
-                <button className="p-2.5 rounded-lg bg-naue-light-gray dark:bg-gray-900 text-naue-text-gray dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                <button className="p-2.5 rounded-lg bg-naue-light-gray dark:bg-yt-bg text-naue-text-gray dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
                   <MoreVertical className="h-4 w-4" />
                 </button>
-                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-xl dark:shadow-2xl border border-gray-100 dark:border-gray-900 py-2 z-20 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-yt-surface rounded-xl shadow-xl dark:shadow-2xl border border-gray-100 dark:border-gray-900 py-2 z-20 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
                   <button
                     onClick={() => handleQuickAction('import')}
                     className="w-full px-4 py-2.5 text-left text-sm text-naue-black dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-900 flex items-center space-x-3 transition-colors"
@@ -526,7 +526,7 @@ const TeamManagement = () => {
                 placeholder="Buscar times..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 rounded-xl border-gray-200 dark:border-gray-800 focus:border-primary-700 dark:focus:border-primary-400 focus:ring-primary-700 dark:focus:ring-primary-400 bg-gray-50/50 dark:bg-gray-900/50 placeholder-gray-700 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100"
+                className="w-full pl-12 pr-4 py-3 rounded-xl border-gray-200 dark:border-gray-800 focus:border-primary-700 dark:focus:border-primary-400 focus:ring-primary-700 dark:focus:ring-primary-400 bg-gray-50/50 dark:bg-yt-bg/50 placeholder-gray-700 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100"
               />
             </div>
 
@@ -546,7 +546,7 @@ const TeamManagement = () => {
                       <select
                         value={selectedDepartment}
                         onChange={(e) => setSelectedDepartment(e.target.value)}
-                        className="w-full rounded-xl border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                        className="w-full rounded-xl border-gray-200 dark:border-gray-800 bg-white dark:bg-yt-bg text-gray-900 dark:text-gray-100"
                       >
                         <option value="">Todos</option>
                         {departments.map(dept => (
@@ -562,7 +562,7 @@ const TeamManagement = () => {
                       <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value as any)}
-                        className="w-full rounded-xl border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                        className="w-full rounded-xl border-gray-200 dark:border-gray-800 bg-white dark:bg-yt-bg text-gray-900 dark:text-gray-100"
                       >
                         <option value="name">Nome</option>
                         <option value="members">Quantidade de membros</option>
@@ -631,7 +631,7 @@ const TeamManagement = () => {
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-naue-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-md hover:shadow-lg border border-naue-border-gray dark:border-gray-900"
+                className="bg-naue-white dark:bg-yt-surface rounded-2xl p-6 max-w-sm w-full mx-4 shadow-md hover:shadow-lg border border-naue-border-gray dark:border-gray-900"
                 onClick={(e) => e.stopPropagation()}
               >
                 <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6 flex items-center">

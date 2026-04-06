@@ -213,7 +213,7 @@
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-gray-100 dark:bg-gray-800;
+  @apply bg-gray-100 dark:bg-yt-surface;
 }
 
 ::-webkit-scrollbar-thumb {

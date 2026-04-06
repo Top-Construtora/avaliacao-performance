@@ -167,7 +167,7 @@ const CycleManagement: React.FC = () => {
 
     if (cycle.status === 'closed') {
       return { 
-        color: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400', 
+        color: 'bg-gray-100 text-gray-600 dark:bg-yt-surface dark:text-gray-400', 
         icon: Lock, 
         text: 'Encerrado',
         dotColor: 'bg-gray-400'
@@ -198,7 +198,7 @@ const CycleManagement: React.FC = () => {
       };
     }
     return { 
-      color: 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400', 
+      color: 'bg-green-100 text-green-700 dark:bg-primary-900/20 dark:text-green-400', 
       icon: CheckCircle, 
       text: 'Ativo',
       dotColor: 'bg-green-400'
@@ -255,12 +255,12 @@ const CycleManagement: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6"
+        className="bg-white dark:bg-yt-surface rounded-xl shadow-sm border border-gray-100 dark:border-yt-border p-6"
       >
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 flex items-center">
-              <Calendar className="h-7 w-7 text-green-800 dark:text-green-700 mr-3" />
+              <Calendar className="h-7 w-7 text-green-800 dark:text-primary-400 mr-3" />
               Gerenciamento de Ciclos de Avaliação
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
@@ -335,7 +335,7 @@ const CycleManagement: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 rounded-lg p-4">
+          <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-yt-elevated rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Ciclos Ativos</p>
@@ -359,7 +359,7 @@ const CycleManagement: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 rounded-lg p-4">
+          <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-yt-elevated rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Encerrados</p>
@@ -376,14 +376,14 @@ const CycleManagement: React.FC = () => {
       {/* Cycles List */}
       <div className="space-y-4">
         {cyclesLoading ? (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-8">
+          <div className="bg-white dark:bg-yt-surface rounded-xl shadow-sm border border-gray-100 dark:border-yt-border p-8">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
               <p className="text-gray-500 dark:text-gray-400 mt-4">Carregando ciclos...</p>
             </div>
           </div>
         ) : filteredCycles.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-8">
+          <div className="bg-white dark:bg-yt-surface rounded-xl shadow-sm border border-gray-100 dark:border-yt-border p-8">
             <div className="text-center">
               <Calendar className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
               <p className="text-gray-500 dark:text-gray-400">
@@ -405,7 +405,7 @@ const CycleManagement: React.FC = () => {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 whileHover={{ scale: 1.01 }}
-                className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 hover:shadow-md transition-all duration-200"
+                className="bg-white dark:bg-yt-surface rounded-xl shadow-sm border border-gray-100 dark:border-yt-border p-6 hover:shadow-md transition-all duration-200"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -524,7 +524,7 @@ const CycleManagement: React.FC = () => {
 
                 {/* Quick Stats for Open Cycles */}
                 {cycle.status === 'open' && (
-                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-yt-border">
                     <button
                       onClick={() => viewCycleDetails(cycle)}
                       className="w-full text-left group"
@@ -557,7 +557,7 @@ const CycleManagement: React.FC = () => {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 max-w-md w-full"
+              className="bg-white dark:bg-yt-surface rounded-xl shadow-xl p-6 max-w-md w-full"
             >
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">
@@ -584,7 +584,7 @@ const CycleManagement: React.FC = () => {
                     type="text"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-800 dark:focus:ring-green-700 focus:border-transparent dark:bg-gray-700 dark:text-gray-200"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-yt-border rounded-lg focus:ring-2 focus:ring-green-800 dark:focus:ring-primary-400 focus:border-transparent dark:bg-yt-elevated dark:text-gray-200"
                     placeholder="Ex: Ciclo 2024 - Primeiro Semestre"
                   />
                 </div>
@@ -596,7 +596,7 @@ const CycleManagement: React.FC = () => {
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-800 dark:focus:ring-green-700 focus:border-transparent dark:bg-gray-700 dark:text-gray-200"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-yt-border rounded-lg focus:ring-2 focus:ring-green-800 dark:focus:ring-primary-400 focus:border-transparent dark:bg-yt-elevated dark:text-gray-200"
                     rows={3}
                     placeholder="Descrição opcional do ciclo"
                   />
@@ -611,7 +611,7 @@ const CycleManagement: React.FC = () => {
                       type="date"
                       value={formData.start_date}
                       onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-800 dark:focus:ring-green-700 focus:border-transparent dark:bg-gray-700 dark:text-gray-200"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-yt-border rounded-lg focus:ring-2 focus:ring-green-800 dark:focus:ring-primary-400 focus:border-transparent dark:bg-yt-elevated dark:text-gray-200"
                     />
                   </div>
 
@@ -623,7 +623,7 @@ const CycleManagement: React.FC = () => {
                       type="date"
                       value={formData.end_date}
                       onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-800 dark:focus:ring-green-700 focus:border-transparent dark:bg-gray-700 dark:text-gray-200"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-yt-border rounded-lg focus:ring-2 focus:ring-green-800 dark:focus:ring-primary-400 focus:border-transparent dark:bg-yt-elevated dark:text-gray-200"
                     />
                   </div>
                 </div>
@@ -681,7 +681,7 @@ const CycleManagement: React.FC = () => {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              className="bg-white dark:bg-yt-surface rounded-xl shadow-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-6">
                 <div>
@@ -707,7 +707,7 @@ const CycleManagement: React.FC = () => {
               {cycleStats ? (
                 <div className="space-y-6">
                   {/* Progress Overview */}
-                  <div className="bg-gradient-to-br from-green-50 to-gray-50 dark:from-gray-700 dark:to-gray-800 rounded-lg p-6">
+                  <div className="bg-gradient-to-br from-green-50 to-gray-50 dark:from-yt-elevated dark:to-gray-800 rounded-lg p-6">
                     <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
                       Progresso Geral
                     </h3>
@@ -728,7 +728,7 @@ const CycleManagement: React.FC = () => {
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
+                      <div className="bg-white dark:bg-yt-surface rounded-lg p-4">
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs text-gray-500 dark:text-gray-400">Total de Colaboradores</p>
@@ -740,7 +740,7 @@ const CycleManagement: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
+                      <div className="bg-white dark:bg-yt-surface rounded-lg p-4">
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs text-gray-500 dark:text-gray-400">Autoavaliações</p>
@@ -752,7 +752,7 @@ const CycleManagement: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
+                      <div className="bg-white dark:bg-yt-surface rounded-lg p-4">
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs text-gray-500 dark:text-gray-400">Avaliações do Líder</p>
@@ -764,7 +764,7 @@ const CycleManagement: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
+                      <div className="bg-white dark:bg-yt-surface rounded-lg p-4">
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs text-gray-500 dark:text-gray-400">Consensos</p>

@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useEvaluation } from '../../hooks/useEvaluation';
 import { useAuth } from '../../context/AuthContext';
 import { EVALUATION_COMPETENCIES } from '../../types/evaluation.types';
 import { pdiService } from '../../services/pdiService';
+import { evaluationService } from '../../services/evaluation.service';
 import LeaderEvaluationHeader from '../../components/LeaderEvaluationHeader';
 import EvaluationSection from '../../components/EvaluationSection';
 import PotentialAndPDI from '../../components/PotentialAndPDI';
@@ -88,6 +89,20 @@ const LeaderEvaluation = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [leaderEvaluationId, setLeaderEvaluationId] = useState<string | null>(null);
 
+  // Controle de modo de visualização
+  const [viewMode, setViewMode] = useState<'edit' | 'view'>('edit');
+  const [existingEvaluationData, setExistingEvaluationData] = useState<any>(null);
+
+  // Auto-save states
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [isRestoringData, setIsRestoringData] = useState(false);
+
+  // Storage key for auto-save
+  const getStorageKey = useCallback(() => {
+    if (!currentCycle?.id || !selectedEmployeeId || !profile?.id) return null;
+    return `leader_evaluation_autosave_${currentCycle.id}_${selectedEmployeeId}_${profile.id}`;
+  }, [currentCycle?.id, selectedEmployeeId, profile?.id]);
+
   const [sections, setSections] = useState<SectionProps[]>([]); // Inicializar vazio, será preenchido no useEffect
 
   // Inicializar sections quando deliveriesCriteria carregar
@@ -124,11 +139,11 @@ const LeaderEvaluation = () => {
         expanded: false,
         icon: Target,
         gradient: 'from-gray-600 to-gray-700',
-        darkGradient: 'dark:from-gray-600 dark:to-gray-700',
+        darkGradient: 'dark:from-gray-600 dark:to-yt-elevated',
         bgColor: 'bg-gray-50',
-        darkBgColor: 'dark:bg-gray-800/20',
+        darkBgColor: 'dark:bg-yt-surface/20',
         borderColor: 'border-gray-200',
-        darkBorderColor: 'dark:border-gray-700',
+        darkBorderColor: 'dark:border-yt-border',
         items: EVALUATION_COMPETENCIES.behavioral.map(comp => ({
           id: comp.name.toLowerCase().replace(/\s+/g, '-'),
           name: comp.name,
@@ -206,6 +221,81 @@ const LeaderEvaluation = () => {
     loadData();
   }, [loadSubordinates]);
 
+  // Auto-save: Restaurar dados do localStorage ao selecionar colaborador
+  useEffect(() => {
+    const storageKey = getStorageKey();
+    if (!storageKey || hasExistingEvaluation) return;
+
+    const savedData = localStorage.getItem(storageKey);
+    if (savedData) {
+      try {
+        setIsRestoringData(true);
+        const parsed = JSON.parse(savedData);
+
+        if (parsed.sections) {
+          setSections(parsed.sections);
+        }
+
+        if (parsed.potentialItems) {
+          setPotentialItems(parsed.potentialItems);
+        }
+
+        if (parsed.pdiData) {
+          setPdiData(prev => ({ ...prev, ...parsed.pdiData }));
+        }
+
+        if (parsed.currentStep) {
+          setCurrentStep(parsed.currentStep);
+        }
+
+        if (parsed.timestamp) {
+          setLastSaved(new Date(parsed.timestamp));
+        }
+
+        toast.success('Dados restaurados automaticamente', {
+          icon: '💾',
+          duration: 3000
+        });
+      } catch (error) {
+        console.error('Erro ao restaurar auto-save:', error);
+        localStorage.removeItem(storageKey);
+      } finally {
+        setIsRestoringData(false);
+      }
+    }
+  }, [getStorageKey, hasExistingEvaluation]);
+
+  // Auto-save: Salvar dados no localStorage quando houver mudanças
+  useEffect(() => {
+    const storageKey = getStorageKey();
+    if (!storageKey || hasExistingEvaluation || isRestoringData) return;
+
+    const hasSectionScores = sections.some(s => s.items.some(i => i.score !== undefined));
+    const hasPotentialScores = potentialItems.some(i => i.score !== undefined);
+    const hasPdiItems = pdiData.curtosPrazos.length > 0 || pdiData.mediosPrazos.length > 0 || pdiData.longosPrazos.length > 0;
+
+    if (hasSectionScores || hasPotentialScores || hasPdiItems) {
+      const dataToSave = {
+        sections,
+        potentialItems,
+        pdiData,
+        currentStep,
+        timestamp: new Date().toISOString()
+      };
+
+      localStorage.setItem(storageKey, JSON.stringify(dataToSave));
+      setLastSaved(new Date());
+    }
+  }, [sections, potentialItems, pdiData, currentStep, getStorageKey, hasExistingEvaluation, isRestoringData]);
+
+  // Limpar auto-save após salvar com sucesso
+  const clearAutoSave = useCallback(() => {
+    const storageKey = getStorageKey();
+    if (storageKey) {
+      localStorage.removeItem(storageKey);
+    }
+  }, [getStorageKey]);
+
   // Load existing PDI when employee is selected
   const loadExistingPDI = async (employeeId: string) => {
     try {
@@ -232,12 +322,56 @@ const LeaderEvaluation = () => {
   useEffect(() => {
     const checkAndPopulate = async () => {
       if (currentCycle && selectedEmployeeId) {
-        const exists = await checkExistingEvaluation(currentCycle.id, selectedEmployeeId, 'leader');
-        setHasExistingEvaluation(exists);
-        if (exists) {
-          toast.error('Já existe uma avaliação para este colaborador neste ciclo');
-          setSelectedEmployeeId('');
-          return;
+        try {
+          const response = await evaluationService.getLeaderEvaluations(selectedEmployeeId, currentCycle.id);
+
+          if (response && response.length > 0) {
+            const existingEval = response[0];
+            setHasExistingEvaluation(true);
+            setExistingEvaluationData(existingEval);
+            setViewMode('view');
+
+            toast.success(
+              `Visualizando avaliação salva (Nota Final: ${existingEval.final_score?.toFixed(1) || 'N/A'})`,
+              { duration: 4000 }
+            );
+
+            if (existingEval.evaluation_competencies) {
+              const technicalComps = existingEval.evaluation_competencies.filter((c: any) => c.category === 'technical');
+              const behavioralComps = existingEval.evaluation_competencies.filter((c: any) => c.category === 'behavioral');
+              const deliveriesComps = existingEval.evaluation_competencies.filter((c: any) => c.category === 'deliveries');
+
+              setSections(prev => prev.map(section => {
+                const comps = section.id === 'technical' ? technicalComps :
+                             section.id === 'behavioral' ? behavioralComps :
+                             deliveriesComps;
+
+                return {
+                  ...section,
+                  items: section.items.map(item => {
+                    const matchingComp = comps.find((c: any) => c.criterion_name === item.name);
+                    return { ...item, score: matchingComp?.score };
+                  })
+                };
+              }));
+            }
+
+            if (existingEval.potential_score) {
+              setPotentialItems(prev => prev.map((item, idx) => ({
+                ...item,
+                score: idx === 0 ? existingEval.potential_score : item.score
+              })));
+            }
+          } else {
+            setHasExistingEvaluation(false);
+            setExistingEvaluationData(null);
+            setViewMode('edit');
+          }
+        } catch (error) {
+          console.error('Erro ao verificar avaliação existente:', error);
+          setHasExistingEvaluation(false);
+          setExistingEvaluationData(null);
+          setViewMode('edit');
         }
 
         // Load existing PDI
@@ -419,6 +553,7 @@ const LeaderEvaluation = () => {
 
       await pdiService.savePDI(pdiParams);
 
+      clearAutoSave();
       toast.success('Avaliação e PDI salvos com sucesso!');
       setTimeout(() => {
         navigate('/');
@@ -481,8 +616,8 @@ const LeaderEvaluation = () => {
   if (!currentCycle || !isCycleInValidPeriod()) {
     const periodMessage = getCyclePeriodMessage();
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-8 text-center">
-        <AlertCircle className="h-12 w-12 text-green-800 dark:text-green-700 mx-auto mb-4" />
+      <div className="bg-white dark:bg-yt-surface rounded-xl shadow-sm border border-gray-100 dark:border-yt-border p-8 text-center">
+        <AlertCircle className="h-12 w-12 text-green-800 dark:text-primary-400 mx-auto mb-4" />
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
           {!currentCycle ? 'Nenhum ciclo de avaliação ativo' : 'Período de avaliação indisponível'}
         </h3>
@@ -597,7 +732,7 @@ const LeaderEvaluation = () => {
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-sm dark:shadow-lg border border-gray-100 dark:border-gray-700 p-8 sm:p-16 text-center"
+          className="bg-white dark:bg-yt-surface rounded-xl sm:rounded-2xl shadow-sm dark:shadow-lg border border-gray-100 dark:border-yt-border p-8 sm:p-16 text-center"
         >
           <div className="max-w-md mx-auto">
             <div className="mx-auto flex items-center justify-center h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-gradient-to-br from-gray-100 to-green-100 dark:from-gray-900/20 dark:to-green-900/20 mb-4 sm:mb-6">

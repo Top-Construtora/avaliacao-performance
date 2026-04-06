@@ -1,13 +1,16 @@
 // src/services/dataCache.service.ts
 // Cache centralizado para evitar chamadas duplicadas às APIs
 
-import { departmentsService, usersService, teamsService } from './supabase.service';
-import type { DepartmentWithDetails, UserWithDetails, TeamWithDetails } from '../types/supabase';
+import { departmentService } from './department.service';
+import { userService } from './user.service';
+import { teamService } from './team.service';
+import type { Department, User, Team } from '../types/supabase';
 
 interface CacheData {
-  users: UserWithDetails[] | null;
-  teams: TeamWithDetails[] | null;
-  departments: DepartmentWithDetails[] | null;
+  users: User[] | null;
+  teams: Team[] | null;
+  departments: Department[] | null;
+  teamMembers: { team_id: string; user: any }[] | null;
   timestamp: number;
 }
 
@@ -18,6 +21,7 @@ let cache: CacheData = {
   users: null,
   teams: null,
   departments: null,
+  teamMembers: null,
   timestamp: 0,
 };
 
@@ -28,7 +32,8 @@ function isCacheValid(): boolean {
   return Date.now() - cache.timestamp < CACHE_TTL &&
          cache.users !== null &&
          cache.teams !== null &&
-         cache.departments !== null;
+         cache.departments !== null &&
+         cache.teamMembers !== null;
 }
 
 async function loadAllData(): Promise<CacheData> {
@@ -47,16 +52,18 @@ async function loadAllData(): Promise<CacheData> {
     try {
       console.log('🔄 Cache: Carregando todos os dados...');
 
-      const [users, teams, departments] = await Promise.all([
-        usersService.getAll(),
-        teamsService.getAll(),
-        departmentsService.getAll(),
+      const [users, teams, departments, teamMembers] = await Promise.all([
+        userService.getUsers(),
+        teamService.getAll(),
+        departmentService.getAll(),
+        teamService.getAllMembers(),
       ]);
 
       cache = {
         users: users || [],
         teams: teams || [],
         departments: departments || [],
+        teamMembers: teamMembers || [],
         timestamp: Date.now(),
       };
 
@@ -80,34 +87,42 @@ export const dataCacheService = {
   },
 
   // Obter usuários do cache
-  async getUsers(): Promise<UserWithDetails[]> {
+  async getUsers(): Promise<User[]> {
     const data = await loadAllData();
     return data.users || [];
   },
 
   // Obter times do cache
-  async getTeams(): Promise<TeamWithDetails[]> {
+  async getTeams(): Promise<Team[]> {
     const data = await loadAllData();
     return data.teams || [];
   },
 
   // Obter departamentos do cache
-  async getDepartments(): Promise<DepartmentWithDetails[]> {
+  async getDepartments(): Promise<Department[]> {
     const data = await loadAllData();
     return data.departments || [];
   },
 
+  // Obter membros de times do cache
+  async getTeamMembers(): Promise<{ team_id: string; user: any }[]> {
+    const data = await loadAllData();
+    return data.teamMembers || [];
+  },
+
   // Obter todos os dados de uma vez (mais eficiente)
   async getAll(): Promise<{
-    users: UserWithDetails[];
-    teams: TeamWithDetails[];
-    departments: DepartmentWithDetails[];
+    users: User[];
+    teams: Team[];
+    departments: Department[];
+    teamMembers: { team_id: string; user: any }[];
   }> {
     const data = await loadAllData();
     return {
       users: data.users || [],
       teams: data.teams || [],
       departments: data.departments || [],
+      teamMembers: data.teamMembers || [],
     };
   },
 
@@ -118,6 +133,7 @@ export const dataCacheService = {
       users: null,
       teams: null,
       departments: null,
+      teamMembers: null,
       timestamp: 0,
     };
     loadingPromise = null;

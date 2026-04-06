@@ -11,6 +11,61 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      notifications: {
+        Row: {
+          id: string
+          recipient_id: string
+          actor_id: string | null
+          type: string
+          title: string
+          message: string
+          priority: string
+          action_url: string | null
+          entity_type: string | null
+          entity_id: string | null
+          group_key: string | null
+          metadata: Record<string, any>
+          read: boolean
+          archived: boolean
+          created_at: string
+          read_at: string | null
+        }
+        Insert: {
+          id?: string
+          recipient_id: string
+          actor_id?: string | null
+          type: string
+          title: string
+          message: string
+          priority?: string
+          action_url?: string | null
+          entity_type?: string | null
+          entity_id?: string | null
+          group_key?: string | null
+          metadata?: Record<string, any>
+          read?: boolean
+          archived?: boolean
+          created_at?: string
+          read_at?: string | null
+        }
+        Update: {
+          recipient_id?: string
+          actor_id?: string | null
+          type?: string
+          title?: string
+          message?: string
+          priority?: string
+          action_url?: string | null
+          entity_type?: string | null
+          entity_id?: string | null
+          group_key?: string | null
+          metadata?: Record<string, any>
+          read?: boolean
+          archived?: boolean
+          created_at?: string
+          read_at?: string | null
+        }
+      }
       departments: {
         Row: {
           id: string

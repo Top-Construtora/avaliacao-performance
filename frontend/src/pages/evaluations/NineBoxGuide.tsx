@@ -227,7 +227,7 @@ const NineBoxGuide = () => {
   const MatrixView = () => (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
       {/* Matrix */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-sm dark:shadow-lg border border-gray-100 dark:border-gray-700 p-4 sm:p-6">
+      <div className="bg-white dark:bg-yt-surface rounded-xl sm:rounded-2xl shadow-sm dark:shadow-lg border border-gray-100 dark:border-yt-border p-4 sm:p-6">
         <div className="relative">
           {/* Potencial Label - Vertical Left */}
           <div className="absolute -left-0 top-1/2 -translate-y-1/2">
@@ -359,7 +359,7 @@ const NineBoxGuide = () => {
       </div>
 
       {/* Side Information */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-sm dark:shadow-lg border border-gray-100 dark:border-gray-700 p-4 sm:p-6 h-fit">
+      <div className="bg-white dark:bg-yt-surface rounded-xl sm:rounded-2xl shadow-sm dark:shadow-lg border border-gray-100 dark:border-yt-border p-4 sm:p-6 h-fit">
         {selectedBox ? (
           <>
             {(() => {
@@ -395,7 +395,7 @@ const NineBoxGuide = () => {
                     </div>
 
                     {/* Description */}
-                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                    <div className="bg-gray-50 dark:bg-yt-elevated/50 rounded-lg p-4">
                       <h4 className="font-medium text-gray-800 dark:text-gray-100 mb-2">Descrição</h4>
                       <p className="text-sm text-gray-600 dark:text-gray-400">{box.details.descricao}</p>
                     </div>
@@ -403,7 +403,7 @@ const NineBoxGuide = () => {
                     {/* Action Items */}
                     <div className="space-y-3">
                       <div className="flex items-start gap-3">
-                        <Briefcase className="w-4 h-4 text-green-800 dark:text-green-700 mt-0.5 flex-shrink-0" />
+                        <Briefcase className="w-4 h-4 text-green-800 dark:text-primary-400 mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
                           <h5 className="text-sm font-medium text-naue-black dark:text-gray-300 font-medium">Atribuições</h5>
                           <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{box.details.atribuicoes}</p>
@@ -411,7 +411,7 @@ const NineBoxGuide = () => {
                       </div>
 
                       <div className="flex items-start gap-3">
-                        <UserCheck className="w-4 h-4 text-green-800 dark:text-green-700 mt-0.5 flex-shrink-0" />
+                        <UserCheck className="w-4 h-4 text-green-800 dark:text-primary-400 mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
                           <h5 className="text-sm font-medium text-naue-black dark:text-gray-300 font-medium">Mentoria</h5>
                           <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{box.details.mentoria}</p>
@@ -419,7 +419,7 @@ const NineBoxGuide = () => {
                       </div>
 
                       <div className="flex items-start gap-3">
-                        <GraduationCap className="w-4 h-4 text-green-800 dark:text-green-700 mt-0.5 flex-shrink-0" />
+                        <GraduationCap className="w-4 h-4 text-green-800 dark:text-primary-400 mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
                           <h5 className="text-sm font-medium text-naue-black dark:text-gray-300 font-medium">Desenvolvimento</h5>
                           <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{box.details.desenvolvimento}</p>
@@ -427,7 +427,7 @@ const NineBoxGuide = () => {
                       </div>
 
                       <div className="flex items-start gap-3">
-                        <DollarSign className="w-4 h-4 text-green-800 dark:text-green-700 mt-0.5 flex-shrink-0" />
+                        <DollarSign className="w-4 h-4 text-green-800 dark:text-primary-400 mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
                           <h5 className="text-sm font-medium text-naue-black dark:text-gray-300 font-medium">Recompensa</h5>
                           <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{box.details.recompensa}</p>
@@ -435,7 +435,7 @@ const NineBoxGuide = () => {
                       </div>
 
                       <div className="flex items-start gap-3">
-                        <Target className="w-4 h-4 text-green-800 dark:text-green-700 mt-0.5 flex-shrink-0" />
+                        <Target className="w-4 h-4 text-green-800 dark:text-primary-400 mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
                           <h5 className="text-sm font-medium text-naue-black dark:text-gray-300 font-medium">Engajamento</h5>
                           <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{box.details.engajamento}</p>
@@ -463,7 +463,7 @@ const NineBoxGuide = () => {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-sm dark:shadow-lg border border-gray-100 dark:border-gray-700 p-4 sm:p-6 lg:p-8"
+        className="bg-white dark:bg-yt-surface rounded-xl sm:rounded-2xl shadow-sm dark:shadow-lg border border-gray-100 dark:border-yt-border p-4 sm:p-6 lg:p-8"
       >
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-4 sm:mb-6 space-y-4 lg:space-y-0">
           <div className="flex items-center space-x-3 sm:space-x-4 w-full lg:w-auto">
@@ -488,7 +488,7 @@ const NineBoxGuide = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-sm dark:shadow-lg border border-gray-100 dark:border-gray-700 p-4 sm:p-6"
+          className="bg-white dark:bg-yt-surface rounded-xl sm:rounded-2xl shadow-sm dark:shadow-lg border border-gray-100 dark:border-yt-border p-4 sm:p-6"
         >
           <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
             Legenda de Interpretação

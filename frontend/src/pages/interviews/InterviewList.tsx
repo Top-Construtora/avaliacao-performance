@@ -31,7 +31,7 @@ type StatusFilter = 'all' | 'scheduled' | 'in_progress' | 'completed' | 'cancell
 const statusConfig = {
   scheduled: { label: 'Agendada', color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300', icon: Calendar },
   in_progress: { label: 'Em Andamento', color: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300', icon: Clock },
-  completed: { label: 'Concluída', color: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300', icon: CheckCircle },
+  completed: { label: 'Concluída', color: 'bg-green-100 dark:bg-primary-900/30 text-green-700 dark:text-green-300', icon: CheckCircle },
   cancelled: { label: 'Cancelada', color: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300', icon: XCircle },
 };
 
@@ -114,7 +114,7 @@ const InterviewList = () => {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8"
+        className="bg-white dark:bg-yt-surface rounded-2xl shadow-sm border border-gray-200 dark:border-yt-border p-8"
       >
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 space-y-4 lg:space-y-0">
           <div>
@@ -139,7 +139,7 @@ const InterviewList = () => {
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-          <div className="relative overflow-hidden bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 dark:from-gray-700 dark:via-gray-800 dark:to-gray-900 rounded-xl p-4 text-center shadow-lg">
+          <div className="relative overflow-hidden bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 dark:from-yt-elevated dark:via-gray-800 dark:to-gray-900 rounded-xl p-4 text-center shadow-lg">
             <div className="relative z-10">
               <p className="text-2xl font-bold text-white">{stats.total}</p>
               <p className="text-sm text-gray-300 font-medium">Total</p>
@@ -182,11 +182,11 @@ const InterviewList = () => {
       </motion.div>
 
       {/* Filters & List */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <div className="bg-white dark:bg-yt-surface rounded-2xl shadow-sm border border-gray-200 dark:border-yt-border p-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 space-y-4 lg:space-y-0">
           <div className="flex items-center space-x-3">
             {/* Tabs de tipo */}
-            <div className="flex items-center bg-gray-100/80 dark:bg-gray-700/50 backdrop-blur-sm rounded-xl p-1.5">
+            <div className="flex items-center bg-gray-100/80 dark:bg-yt-elevated/50 backdrop-blur-sm rounded-xl p-1.5">
               <button
                 onClick={() => setTabFilter('all')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
@@ -223,7 +223,7 @@ const InterviewList = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-              className="rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-primary-500 focus:ring-primary-500 focus:bg-white dark:focus:bg-gray-600 transition-colors py-2.5 px-3 text-sm"
+              className="rounded-xl border border-gray-200 dark:border-yt-border bg-gray-50 dark:bg-yt-elevated text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-primary-500 focus:ring-primary-500 focus:bg-white dark:focus:bg-gray-600 transition-colors py-2.5 px-3 text-sm"
             >
               <option value="all">Todos os status</option>
               <option value="scheduled">Agendadas</option>
@@ -242,7 +242,7 @@ const InterviewList = () => {
             placeholder="Buscar por colaborador, cargo ou entrevistador..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-primary-500 focus:ring-primary-500 focus:bg-white dark:focus:bg-gray-600 transition-colors py-2.5 px-3"
+            className="w-full pl-12 pr-4 rounded-xl border border-gray-200 dark:border-yt-border bg-gray-50 dark:bg-yt-elevated text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-primary-500 focus:ring-primary-500 focus:bg-white dark:focus:bg-gray-600 transition-colors py-2.5 px-3"
           />
         </div>
 
@@ -257,7 +257,7 @@ const InterviewList = () => {
                 key={interview.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600 hover:border-primary-200 dark:hover:border-primary-600 transition-all duration-300 overflow-hidden"
+                className="bg-gray-50 dark:bg-yt-elevated/50 rounded-xl border border-gray-100 dark:border-yt-border hover:border-primary-200 dark:hover:border-primary-600 transition-all duration-300 overflow-hidden"
               >
                 <div className="flex items-center p-4 gap-4">
                   {/* Tipo badge */}
@@ -353,7 +353,7 @@ const InterviewList = () => {
             animate={{ opacity: 1, scale: 1 }}
             className="text-center py-12"
           >
-            <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 mb-6">
+            <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-yt-elevated dark:to-gray-800 mb-6">
               <ClipboardList className="h-10 w-10 text-gray-400 dark:text-gray-500" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Nenhuma entrevista encontrada</h3>

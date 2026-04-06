@@ -26,8 +26,8 @@ import { recruitmentService, JobOpening } from '../../services/recruitment.servi
 import { useUserRole } from '../../context/AuthContext';
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
-  draft: { label: 'Rascunho', color: 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300', icon: FileText },
-  open: { label: 'Aberta', color: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300', icon: PlayCircle },
+  draft: { label: 'Rascunho', color: 'bg-gray-100 dark:bg-yt-elevated text-gray-700 dark:text-gray-300', icon: FileText },
+  open: { label: 'Aberta', color: 'bg-green-100 dark:bg-primary-900/30 text-green-700 dark:text-green-300', icon: PlayCircle },
   in_progress: { label: 'Em Andamento', color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300', icon: Clock },
   closed: { label: 'Fechada', color: 'bg-stone-100 dark:bg-stone-900/30 text-stone-700 dark:text-stone-300', icon: CheckCircle },
   cancelled: { label: 'Cancelada', color: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300', icon: StopCircle },
@@ -115,7 +115,7 @@ const RecruitmentList = () => {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8"
+        className="bg-white dark:bg-yt-surface rounded-2xl shadow-sm border border-gray-200 dark:border-yt-border p-8"
       >
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 space-y-4 lg:space-y-0">
           <div>
@@ -139,7 +139,7 @@ const RecruitmentList = () => {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-          <div className="relative overflow-hidden bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 dark:from-gray-700 dark:via-gray-800 dark:to-gray-900 rounded-xl p-4 text-center shadow-lg">
+          <div className="relative overflow-hidden bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 dark:from-yt-elevated dark:via-gray-800 dark:to-gray-900 rounded-xl p-4 text-center shadow-lg">
             <div className="relative z-10">
               <p className="text-2xl font-bold text-white">{stats.total}</p>
               <p className="text-sm text-gray-300 font-medium">Total Vagas</p>
@@ -182,9 +182,9 @@ const RecruitmentList = () => {
       </motion.div>
 
       {/* Filters & List */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <div className="bg-white dark:bg-yt-surface rounded-2xl shadow-sm border border-gray-200 dark:border-yt-border p-6">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
-          <div className="flex items-center bg-gray-100/80 dark:bg-gray-700/50 rounded-xl p-1.5">
+          <div className="flex items-center bg-gray-100/80 dark:bg-yt-elevated/50 rounded-xl p-1.5">
             {['all', 'open', 'in_progress', 'draft', 'closed'].map(s => (
               <button
                 key={s}
@@ -208,7 +208,7 @@ const RecruitmentList = () => {
             placeholder="Buscar vagas, departamentos, solicitantes..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-primary-500 focus:ring-primary-500 focus:bg-white dark:focus:bg-gray-600 transition-colors py-2.5 px-3"
+            className="w-full pl-12 pr-4 rounded-xl border border-gray-200 dark:border-yt-border bg-gray-50 dark:bg-yt-elevated text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-primary-500 focus:ring-primary-500 focus:bg-white dark:focus:bg-gray-600 transition-colors py-2.5 px-3"
           />
         </div>
 
@@ -223,7 +223,7 @@ const RecruitmentList = () => {
                 key={opening.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600 hover:border-primary-200 dark:hover:border-primary-600 transition-all duration-300 p-4"
+                className="bg-gray-50 dark:bg-yt-elevated/50 rounded-xl border border-gray-100 dark:border-yt-border hover:border-primary-200 dark:hover:border-primary-600 transition-all duration-300 p-4"
               >
                 <div className="flex items-start gap-4">
                   <div className="flex-shrink-0 p-2.5 rounded-xl bg-primary-100 dark:bg-primary-900/30">

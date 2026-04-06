@@ -158,7 +158,7 @@ const Settings = () => {
         
         {/* Avatar e Nome */}
         <div className="flex items-center space-x-4 mb-8">
-          <div className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center text-2xl font-bold text-green-800 dark:text-green-700">
+          <div className="w-20 h-20 rounded-full bg-green-100 dark:bg-primary-900/20 flex items-center justify-center text-2xl font-bold text-green-800 dark:text-primary-400">
             {profile?.name?.split(' ').map(n => n[0]).join('').slice(0, 2) || 'US'}
           </div>
           <div>
@@ -246,18 +246,18 @@ const Settings = () => {
                 onClick={() => handleThemeChange(themeOption.value)}
                 className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all ${
                   theme === themeOption.value
-                    ? 'border-green-800 dark:border-green-700 bg-green-50 dark:bg-green-900/20'
-                    : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 bg-white dark:bg-gray-800'
+                    ? 'border-green-800 dark:border-green-700 bg-green-50 dark:bg-primary-900/20'
+                    : 'border-gray-200 dark:border-yt-border hover:border-gray-300 dark:hover:border-gray-500 bg-white dark:bg-yt-surface'
                 }`}
               >
                 <themeOption.icon className={`h-6 w-6 mb-2 ${
                   theme === themeOption.value 
-                    ? 'text-green-800 dark:text-green-700' 
+                    ? 'text-green-800 dark:text-primary-400' 
                     : 'text-gray-600 dark:text-gray-400'
                 }`} />
                 <span className={`text-sm font-medium ${
                   theme === themeOption.value 
-                    ? 'text-green-800 dark:text-green-700' 
+                    ? 'text-green-800 dark:text-primary-400' 
                     : 'text-naue-black dark:text-gray-300 font-medium'
                 }`}>
                   {themeOption.label}
@@ -278,7 +278,7 @@ const Settings = () => {
       <div>
         <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-6">Segurança</h2>
         
-        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6">
+        <div className="bg-gray-50 dark:bg-yt-surface/50 rounded-lg p-6">
           <h3 className="text-sm font-semibold text-naue-black dark:text-gray-300 font-medium uppercase tracking-wider mb-4">
             Alterar Senha
           </h3>
@@ -293,7 +293,7 @@ const Settings = () => {
                   type={showPassword ? "text" : "password"}
                   value={passwordForm.currentPassword}
                   onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-lg border border-naue-border-gray dark:border-gray-600 focus:ring-2 focus:ring-green-800 dark:focus:ring-green-700 focus:border-green-800 dark:focus:border-green-700 bg-white dark:bg-gray-700 text-naue-black dark:text-gray-100 placeholder-naue-text-gray"
+                  className="w-full px-4 py-3 rounded-lg border border-naue-border-gray dark:border-yt-border focus:ring-2 focus:ring-green-800 dark:focus:ring-primary-400 focus:border-green-800 dark:focus:border-primary-400 bg-white dark:bg-yt-elevated text-naue-black dark:text-gray-100 placeholder-naue-text-gray"
                   placeholder="Digite sua senha atual"
                 />
                 <button
@@ -315,7 +315,7 @@ const Settings = () => {
                   type={showNewPassword ? "text" : "password"}
                   value={passwordForm.newPassword}
                   onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-lg border border-naue-border-gray dark:border-gray-600 focus:ring-2 focus:ring-green-800 dark:focus:ring-green-700 focus:border-green-800 dark:focus:border-green-700 bg-white dark:bg-gray-700 text-naue-black dark:text-gray-100 placeholder-naue-text-gray"
+                  className="w-full px-4 py-3 rounded-lg border border-naue-border-gray dark:border-yt-border focus:ring-2 focus:ring-green-800 dark:focus:ring-primary-400 focus:border-green-800 dark:focus:border-primary-400 bg-white dark:bg-yt-elevated text-naue-black dark:text-gray-100 placeholder-naue-text-gray"
                   placeholder="Digite sua nova senha"
                 />
                 <button
@@ -340,7 +340,7 @@ const Settings = () => {
                   type={showConfirmPassword ? "text" : "password"}
                   value={passwordForm.confirmPassword}
                   onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-lg border border-naue-border-gray dark:border-gray-600 focus:ring-2 focus:ring-green-800 dark:focus:ring-green-700 focus:border-green-800 dark:focus:border-green-700 bg-white dark:bg-gray-700 text-naue-black dark:text-gray-100 placeholder-naue-text-gray"
+                  className="w-full px-4 py-3 rounded-lg border border-naue-border-gray dark:border-yt-border focus:ring-2 focus:ring-green-800 dark:focus:ring-primary-400 focus:border-green-800 dark:focus:border-primary-400 bg-white dark:bg-yt-elevated text-naue-black dark:text-gray-100 placeholder-naue-text-gray"
                   placeholder="Confirme sua nova senha"
                 />
                 <button
@@ -392,12 +392,12 @@ const Settings = () => {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl shadow-sm dark:shadow-lg border border-gray-100 dark:border-gray-700 p-4 md:p-8"
+        className="bg-white dark:bg-yt-surface rounded-xl md:rounded-2xl shadow-sm dark:shadow-lg border border-gray-100 dark:border-yt-border p-4 md:p-8"
       >
         <div className="flex flex-col space-y-4 md:flex-row md:justify-between md:items-start md:space-y-0 mb-6">
           <div className="flex-1">
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800 dark:text-gray-100 flex items-center flex-wrap">
-              <SettingsIcon className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 text-green-800 dark:text-green-700 mr-2 sm:mr-3 flex-shrink-0" />
+              <SettingsIcon className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 text-green-800 dark:text-primary-400 mr-2 sm:mr-3 flex-shrink-0" />
               <span className="break-words">Configurações</span>
             </h1>
             <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 mt-1">Gerencie suas informações e preferências</p>
@@ -412,7 +412,7 @@ const Settings = () => {
           variants={itemVariants}
           className="lg:col-span-1"
         >
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm dark:shadow-lg border border-gray-100 dark:border-gray-700 p-4">
+          <div className="bg-white dark:bg-yt-surface rounded-2xl shadow-sm dark:shadow-lg border border-gray-100 dark:border-yt-border p-4">
             <nav className="space-y-1">
               {settingSections.map((section) => (
                 <button
@@ -420,13 +420,13 @@ const Settings = () => {
                   onClick={() => setActiveSection(section.id)}
                   className={`w-full flex items-center px-3 py-2.5 rounded-lg transition-all ${
                     activeSection === section.id
-                      ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-700'
+                      ? 'bg-green-50 dark:bg-primary-900/20 text-green-800 dark:text-primary-400'
                       : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50'
                   }`}
                 >
                   <section.icon className={`h-5 w-5 mr-3 ${
                     activeSection === section.id 
-                      ? 'text-green-800 dark:text-green-700' 
+                      ? 'text-green-800 dark:text-primary-400' 
                       : 'text-gray-400 dark:text-gray-500'
                   }`} />
                   <div className="text-left">
@@ -444,7 +444,7 @@ const Settings = () => {
           variants={itemVariants}
           className="lg:col-span-3"
         >
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm dark:shadow-lg border border-gray-100 dark:border-gray-700 p-6 sm:p-8">
+          <div className="bg-white dark:bg-yt-surface rounded-2xl shadow-sm dark:shadow-lg border border-gray-100 dark:border-yt-border p-6 sm:p-8">
             <AnimatePresence mode="wait">
               {activeSection === 'profile' && renderProfileSection()}
               {activeSection === 'preferences' && renderPreferencesSection()}

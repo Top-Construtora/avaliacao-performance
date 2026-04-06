@@ -124,7 +124,7 @@ const AdminDashboard = () => {
               key={card.id}
               variants={itemVariants}
               whileHover={{ y: -5, transition: { duration: 0.2 } }}
-              className="relative bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer group overflow-hidden border border-gray-300 dark:border-gray-700"
+              className="relative bg-white dark:bg-yt-surface rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer group overflow-hidden border border-gray-300 dark:border-yt-border"
               onClick={card.onClick}
             >
               {/* Background Gradient Decoration */}
@@ -149,9 +149,9 @@ const AdminDashboard = () => {
                   {card.description}
                 </p>
 
-                <div className="inline-flex items-center text-sm font-semibold group-hover:gap-2 sm:group-hover:gap-3 transition-all duration-300" style={{ color: '#003b2b' }}>
-                  <span className="dark:text-[#003b2b]">{card.action}</span>
-                  <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 transition-transform group-hover:translate-x-1 dark:text-[#003b2b]" />
+                <div className="inline-flex items-center text-sm font-semibold group-hover:gap-2 sm:group-hover:gap-3 transition-all duration-300 text-primary-500 dark:text-emerald-400">
+                  <span>{card.action}</span>
+                  <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 transition-transform group-hover:translate-x-1" />
                 </div>
               </div>
 

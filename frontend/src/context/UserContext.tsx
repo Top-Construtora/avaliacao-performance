@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { User, Team, Department, HierarchicalRelation } from '../types';
 import { toast } from 'react-hot-toast';
-import { supabase } from '../lib/supabase';
 
 interface UserContextType {
   users: User[];
@@ -234,66 +233,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('hierarchicalRelations', JSON.stringify(hierarchicalRelations));
   }, [hierarchicalRelations]);
 
-  // Setup real-time subscriptions
-  useEffect(() => {
-    // Subscribe to changes in users table
-    const userSubscription = supabase
-      .channel('users-changes')
-      .on(
-        'postgres_changes',
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'users' 
-        },
-        (payload) => {
-          console.log('User change detected:', payload);
-          // Aguarda um pouco para garantir que a transação foi completada
-          setTimeout(() => {
-            reloadUsers();
-          }, 1000);
-        }
-      )
-      .subscribe();
-
-    // Subscribe to changes in teams table
-    const teamSubscription = supabase
-      .channel('teams-changes')
-      .on(
-        'postgres_changes',
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'teams' 
-        },
-        () => {
-          reloadTeams();
-        }
-      )
-      .subscribe();
-
-    // Subscribe to changes in departments table
-    const departmentSubscription = supabase
-      .channel('departments-changes')
-      .on(
-        'postgres_changes',
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'departments' 
-        },
-        () => {
-          reloadDepartments();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      userSubscription.unsubscribe();
-      teamSubscription.unsubscribe();
-      departmentSubscription.unsubscribe();
-    };
-  }, []);
+  // DESABILITADO: Realtime está desabilitado para evitar overhead de WebSocket
+  // As subscriptions criavam 3 conexões WebSocket no mount mas os handlers
+  // apenas reliam do localStorage, causando overhead sem benefício real.
+  // Quando a API real estiver implementada nos reload functions, reavaliar.
 
   // Reload functions
   const reloadUsers = async () => {
