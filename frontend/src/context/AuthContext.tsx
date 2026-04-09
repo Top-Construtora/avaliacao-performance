@@ -164,9 +164,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 toast.error('Usuário não encontrado no sistema. Entre em contato com o administrador.');
                 await supabase.auth.signOut();
               }
-            } catch (err) {
+            } catch (err: any) {
               console.error('Erro ao processar perfil:', err);
-              toast.error('Erro ao buscar perfil. Entre em contato com o administrador.');
+              if (err?.message?.includes('NetworkError') || err?.message?.includes('Failed to fetch') || err?.name === 'TypeError') {
+                toast.error('Servidor fora do ar. Tente novamente em alguns minutos.');
+              } else {
+                toast.error('Erro ao buscar perfil. Entre em contato com o administrador.');
+              }
               await supabase.auth.signOut();
             }
           };
@@ -252,8 +256,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.error('❌ Perfil não encontrado no checkAuth');
           await supabase.auth.signOut();
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('❌ Erro ao buscar perfil no checkAuth:', error);
+        if (error?.message?.includes('NetworkError') || error?.message?.includes('Failed to fetch') || error?.name === 'TypeError') {
+          toast.error('Servidor fora do ar. Tente novamente em alguns minutos.');
+        }
         await supabase.auth.signOut();
       }
     })();
@@ -316,9 +323,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let profileData: User | null = null;
       try {
         profileData = await userService.getUserById(data.user.id);
-      } catch (error) {
+      } catch (error: any) {
         console.error('❌ Erro ao buscar perfil:', error);
-        toast.error('Erro ao buscar perfil do usuário');
+        if (error?.message?.includes('NetworkError') || error?.message?.includes('Failed to fetch') || error?.name === 'TypeError') {
+          toast.error('Servidor fora do ar. Tente novamente em alguns minutos.');
+        } else {
+          toast.error('Erro ao buscar perfil do usuário');
+        }
         await supabase.auth.signOut();
         return false;
       }

@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => {
     },
     // Garantir que as variáveis de ambiente sejam expostas
     define: {
-      'import.meta.env.VITE_API_URL': JSON.stringify(env.VITE_API_URL),
+      ...(env.VITE_API_URL ? { 'import.meta.env.VITE_API_URL': JSON.stringify(env.VITE_API_URL) } : {}),
       'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL),
       'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY),
       'import.meta.env.VITE_USE_SUPABASE_AUTH': JSON.stringify(env.VITE_USE_SUPABASE_AUTH),

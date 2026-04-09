@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useEvaluation } from '../../hooks/useEvaluation';
@@ -12,6 +12,54 @@ import PotentialAndPDI from '../../components/PotentialAndPDI';
 import { AlertCircle, CheckCircle, ArrowRight, BookOpen, Target, Award, Info } from 'lucide-react';
 import Button from '../../components/Button';
 import { motion } from 'framer-motion';
+
+// Error Boundary para capturar erros de renderização
+class LeaderEvaluationErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('LeaderEvaluation Error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="bg-white dark:bg-yt-surface rounded-xl shadow-sm border border-red-200 dark:border-red-800 p-8 text-center">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+            Erro ao carregar avaliação
+          </h3>
+          <p className="text-red-600 dark:text-red-400 mb-4 text-sm font-mono">
+            {this.state.error?.message}
+          </p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
+            {this.state.error?.stack?.split('\n').slice(0, 3).join('\n')}
+          </p>
+          <button
+            onClick={() => {
+              this.setState({ hasError: false, error: null });
+              window.location.reload();
+            }}
+            className="px-4 py-2 bg-green-800 text-white rounded-lg hover:bg-green-900 transition-colors"
+          >
+            Recarregar página
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // Define SectionProps interface for type consistency
 interface CompetencyItem {
@@ -232,19 +280,21 @@ const LeaderEvaluation = () => {
         setIsRestoringData(true);
         const parsed = JSON.parse(savedData);
 
-        if (parsed.sections) {
+        // Validar estrutura dos dados antes de restaurar
+        if (parsed.sections && Array.isArray(parsed.sections) &&
+            parsed.sections.every((s: any) => s && s.id && Array.isArray(s.items))) {
           setSections(parsed.sections);
         }
 
-        if (parsed.potentialItems) {
+        if (parsed.potentialItems && Array.isArray(parsed.potentialItems)) {
           setPotentialItems(parsed.potentialItems);
         }
 
-        if (parsed.pdiData) {
+        if (parsed.pdiData && typeof parsed.pdiData === 'object') {
           setPdiData(prev => ({ ...prev, ...parsed.pdiData }));
         }
 
-        if (parsed.currentStep) {
+        if (parsed.currentStep && typeof parsed.currentStep === 'number') {
           setCurrentStep(parsed.currentStep);
         }
 
@@ -755,4 +805,10 @@ const LeaderEvaluation = () => {
   );
 };
 
-export default LeaderEvaluation;
+const LeaderEvaluationWithErrorBoundary = () => (
+  <LeaderEvaluationErrorBoundary>
+    <LeaderEvaluation />
+  </LeaderEvaluationErrorBoundary>
+);
+
+export default LeaderEvaluationWithErrorBoundary;
