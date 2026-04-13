@@ -41,7 +41,10 @@ const EvaluationSection: React.FC<EvaluationSectionProps> = ({
   isSaving,
   readOnly = false,
 }) => {
-  const IconComponent = section.icon;
+  // Proteção: se icon não for um componente válido (ex: dados corrompidos do auto-save), usar fallback
+  const IconComponent = (typeof section.icon === 'function' || (section.icon && typeof section.icon === 'object' && '$$typeof' in section.icon))
+    ? section.icon
+    : Award;
   const sectionProgress = (section.items.filter(item => item.score !== undefined).length / section.items.length) * 100;
   const scores = calculateScores(); // Get current scores
 
