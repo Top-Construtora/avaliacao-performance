@@ -281,9 +281,22 @@ const LeaderEvaluation = () => {
         const parsed = JSON.parse(savedData);
 
         // Validar estrutura dos dados antes de restaurar
+        // IMPORTANTE: Apenas restaurar os scores dos items, não a section inteira,
+        // pois propriedades como 'icon' (componentes React) não sobrevivem à serialização JSON
         if (parsed.sections && Array.isArray(parsed.sections) &&
             parsed.sections.every((s: any) => s && s.id && Array.isArray(s.items))) {
-          setSections(parsed.sections);
+          setSections(prev => prev.map(section => {
+            const savedSection = parsed.sections.find((s: any) => s.id === section.id);
+            if (!savedSection) return section;
+            return {
+              ...section,
+              expanded: savedSection.expanded ?? section.expanded,
+              items: section.items.map(item => {
+                const savedItem = savedSection.items.find((i: any) => i.id === item.id);
+                return savedItem ? { ...item, score: savedItem.score } : item;
+              })
+            };
+          }));
         }
 
         if (parsed.potentialItems && Array.isArray(parsed.potentialItems)) {
@@ -325,8 +338,10 @@ const LeaderEvaluation = () => {
     const hasPdiItems = pdiData.curtosPrazos.length > 0 || pdiData.mediosPrazos.length > 0 || pdiData.longosPrazos.length > 0;
 
     if (hasSectionScores || hasPotentialScores || hasPdiItems) {
+      // Salvar apenas dados serializáveis das sections (sem icon que é componente React)
+      const serializableSections = sections.map(({ icon, ...rest }) => rest);
       const dataToSave = {
-        sections,
+        sections: serializableSections,
         potentialItems,
         pdiData,
         currentStep,
