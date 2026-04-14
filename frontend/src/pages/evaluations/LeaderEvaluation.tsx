@@ -133,6 +133,7 @@ const LeaderEvaluation = () => {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
   const [currentStep, setCurrentStep] = useState(1); // 1: Competências, 2: Potencial, 3: PDI
   const [loading, setLoading] = useState(true);
+  const [isLoadingEmployee, setIsLoadingEmployee] = useState(false);
   const [hasExistingEvaluation, setHasExistingEvaluation] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [leaderEvaluationId, setLeaderEvaluationId] = useState<string | null>(null);
@@ -144,6 +145,7 @@ const LeaderEvaluation = () => {
   // Auto-save states
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isRestoringData, setIsRestoringData] = useState(false);
+  const autoSaveRestoredRef = React.useRef<string | null>(null);
 
   // Storage key for auto-save
   const getStorageKey = useCallback(() => {
@@ -270,14 +272,18 @@ const LeaderEvaluation = () => {
   }, [loadSubordinates]);
 
   // Auto-save: Restaurar dados do localStorage ao selecionar colaborador
+  // Aguarda sections estar inicializado para que o restore funcione corretamente
   useEffect(() => {
     const storageKey = getStorageKey();
-    if (!storageKey || hasExistingEvaluation) return;
+    if (!storageKey || hasExistingEvaluation || sections.length === 0) return;
+    // Evitar restaurar mais de uma vez para o mesmo colaborador
+    if (autoSaveRestoredRef.current === storageKey) return;
 
     const savedData = localStorage.getItem(storageKey);
     if (savedData) {
       try {
         setIsRestoringData(true);
+        autoSaveRestoredRef.current = storageKey;
         const parsed = JSON.parse(savedData);
 
         // Validar estrutura dos dados antes de restaurar
@@ -325,8 +331,11 @@ const LeaderEvaluation = () => {
       } finally {
         setIsRestoringData(false);
       }
+    } else {
+      // Marcar como já verificado mesmo sem dados salvos
+      autoSaveRestoredRef.current = storageKey;
     }
-  }, [getStorageKey, hasExistingEvaluation]);
+  }, [getStorageKey, hasExistingEvaluation, sections.length]);
 
   // Auto-save: Salvar dados no localStorage quando houver mudanças
   useEffect(() => {
@@ -386,7 +395,33 @@ const LeaderEvaluation = () => {
   // Check for existing evaluation and populate PDI data when employee is selected
   useEffect(() => {
     const checkAndPopulate = async () => {
-      if (currentCycle && selectedEmployeeId) {
+      if (!selectedEmployeeId) {
+        setIsLoadingEmployee(false);
+        return;
+      }
+
+      // Resetar auto-save ref para permitir re-restauração se trocar de colaborador
+      autoSaveRestoredRef.current = null;
+
+      // Preencher dados do PDI com info do colaborador selecionado
+      const employeeProfile = subordinates.find(sub => sub.id === selectedEmployeeId);
+      if (employeeProfile) {
+        setPdiData((prev: PdiData) => ({
+          ...prev,
+          colaboradorId: employeeProfile.id,
+          colaborador: employeeProfile.name,
+          cargo: employeeProfile.position,
+          departamento: Array.isArray(employeeProfile.departments)
+            ? employeeProfile.departments.map(dep => dep.name).join(', ')
+            : employeeProfile.departments || 'Não definido',
+          periodo: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
+          dataCriacao: prev.dataCriacao || new Date().toISOString(),
+          dataAtualizacao: new Date().toISOString(),
+        }));
+      }
+
+      if (currentCycle) {
+        setIsLoadingEmployee(true);
         try {
           const response = await evaluationService.getLeaderEvaluations(selectedEmployeeId, currentCycle.id);
 
@@ -437,32 +472,17 @@ const LeaderEvaluation = () => {
           setHasExistingEvaluation(false);
           setExistingEvaluationData(null);
           setViewMode('edit');
+        } finally {
+          setIsLoadingEmployee(false);
         }
 
         // Load existing PDI
         await loadExistingPDI(selectedEmployeeId);
       }
-
-      if (selectedEmployeeId) {
-        const employeeProfile = subordinates.find(sub => sub.id === selectedEmployeeId);
-        if (employeeProfile) {
-          setPdiData((prev: PdiData) => ({ // Explicitly type prev
-            ...prev,
-            colaboradorId: employeeProfile.id,
-            colaborador: employeeProfile.name,
-            cargo: employeeProfile.position,
-            departamento: Array.isArray(employeeProfile.departments)
-              ? employeeProfile.departments.map(dep => dep.name).join(', ')
-              : employeeProfile.departments || 'Não definido',
-            periodo: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
-            dataCriacao: prev.dataCriacao || new Date().toISOString(),
-            dataAtualizacao: new Date().toISOString(),
-          }));
-        }
-      }
     };
     checkAndPopulate();
-  }, [currentCycle, selectedEmployeeId, checkExistingEvaluation, subordinates]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentCycle, selectedEmployeeId]);
 
   const calculateScores = (): Scores => {
     const newScores: Scores = { technical: 0, behavioral: 0, organizational: 0, final: 0 };
@@ -716,7 +736,18 @@ const LeaderEvaluation = () => {
         setPdiData={setPdiData}
       />
 
-      {selectedEmployeeId && (
+      {selectedEmployeeId && isLoadingEmployee && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="bg-white dark:bg-yt-surface rounded-xl shadow-sm border border-gray-100 dark:border-yt-border p-8 text-center"
+        >
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-800 dark:border-primary-400 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Carregando dados da avaliação...</p>
+        </motion.div>
+      )}
+
+      {selectedEmployeeId && !isLoadingEmployee && (
         <>
           {currentStep === 1 && (
             <>
