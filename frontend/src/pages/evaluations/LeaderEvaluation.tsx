@@ -156,71 +156,94 @@ const LeaderEvaluation = () => {
   const [sections, setSections] = useState<SectionProps[]>([]); // Inicializar vazio, será preenchido no useEffect
 
   // Inicializar sections quando deliveriesCriteria carregar
+  // IMPORTANTE: preserva os scores já inseridos pelo usuário ao re-inicializar
   useEffect(() => {
     // Usar deliveriesCriteria do contexto ou fallback para EVALUATION_COMPETENCIES.deliveries
     const organizationalCompetencies = deliveriesCriteria.length > 0
       ? deliveriesCriteria
       : EVALUATION_COMPETENCIES.deliveries;
 
-    setSections([
-      {
-        id: 'technical',
-        title: 'Competências Técnicas',
-        weight: 50,
-        expanded: true,
-        icon: BookOpen,
-        gradient: 'from-green-800 to-green-900',
-        darkGradient: 'dark:from-green-800 dark:to-green-900',
-        bgColor: 'bg-green-50',
-        darkBgColor: 'dark:bg-green-800/20',
-        borderColor: 'border-green-200',
-        darkBorderColor: 'dark:border-green-700',
-        items: EVALUATION_COMPETENCIES.technical.map(comp => ({
-          id: comp.name.toLowerCase().replace(/\s+/g, '-'),
-          name: comp.name,
-          description: comp.description,
-          score: undefined
-        }))
-      },
-      {
-        id: 'behavioral',
-        title: 'Competências Comportamentais',
-        weight: 30,
-        expanded: false,
-        icon: Target,
-        gradient: 'from-gray-600 to-gray-700',
-        darkGradient: 'dark:from-gray-600 dark:to-yt-elevated',
-        bgColor: 'bg-gray-50',
-        darkBgColor: 'dark:bg-yt-surface/20',
-        borderColor: 'border-gray-200',
-        darkBorderColor: 'dark:border-yt-border',
-        items: EVALUATION_COMPETENCIES.behavioral.map(comp => ({
-          id: comp.name.toLowerCase().replace(/\s+/g, '-'),
-          name: comp.name,
-          description: comp.description,
-          score: undefined
-        }))
-      },
-      {
-        id: 'organizational',
-        title: 'Competências Organizacionais',
-        weight: 20,
-        expanded: false,
-        icon: Award,
-        gradient: 'from-stone-700 to-stone-800',
-        darkGradient: 'dark:from-stone-700 dark:to-stone-800',
-        bgColor: 'bg-stone-50',
-        darkBgColor: 'dark:bg-stone-800/20',
-        borderColor: 'border-stone-200',
-        darkBorderColor: 'dark:border-stone-700',
-        items: organizationalCompetencies.map((comp: any) => ({
-          id: comp.name.toLowerCase().replace(/\s+/g, '-'),
-          name: comp.name,
-          description: comp.description,
-          score: undefined
-        }))
-      }
-    ]);
+    setSections(prevSections => {
+      // Criar mapa de scores existentes para preservar ao re-inicializar
+      const existingScores = new Map<string, number | undefined>();
+      prevSections.forEach(section => {
+        section.items.forEach(item => {
+          existingScores.set(`${section.id}:${item.id}`, item.score);
+        });
+      });
+
+      const getScore = (sectionId: string, itemId: string) =>
+        existingScores.get(`${sectionId}:${itemId}`);
+
+      return [
+        {
+          id: 'technical',
+          title: 'Competências Técnicas',
+          weight: 50,
+          expanded: true,
+          icon: BookOpen,
+          gradient: 'from-green-800 to-green-900',
+          darkGradient: 'dark:from-green-800 dark:to-green-900',
+          bgColor: 'bg-green-50',
+          darkBgColor: 'dark:bg-green-800/20',
+          borderColor: 'border-green-200',
+          darkBorderColor: 'dark:border-green-700',
+          items: EVALUATION_COMPETENCIES.technical.map(comp => {
+            const id = comp.name.toLowerCase().replace(/\s+/g, '-');
+            return {
+              id,
+              name: comp.name,
+              description: comp.description,
+              score: getScore('technical', id)
+            };
+          })
+        },
+        {
+          id: 'behavioral',
+          title: 'Competências Comportamentais',
+          weight: 30,
+          expanded: false,
+          icon: Target,
+          gradient: 'from-gray-600 to-gray-700',
+          darkGradient: 'dark:from-gray-600 dark:to-yt-elevated',
+          bgColor: 'bg-gray-50',
+          darkBgColor: 'dark:bg-yt-surface/20',
+          borderColor: 'border-gray-200',
+          darkBorderColor: 'dark:border-yt-border',
+          items: EVALUATION_COMPETENCIES.behavioral.map(comp => {
+            const id = comp.name.toLowerCase().replace(/\s+/g, '-');
+            return {
+              id,
+              name: comp.name,
+              description: comp.description,
+              score: getScore('behavioral', id)
+            };
+          })
+        },
+        {
+          id: 'organizational',
+          title: 'Competências Organizacionais',
+          weight: 20,
+          expanded: false,
+          icon: Award,
+          gradient: 'from-stone-700 to-stone-800',
+          darkGradient: 'dark:from-stone-700 dark:to-stone-800',
+          bgColor: 'bg-stone-50',
+          darkBgColor: 'dark:bg-stone-800/20',
+          borderColor: 'border-stone-200',
+          darkBorderColor: 'dark:border-stone-700',
+          items: organizationalCompetencies.map((comp: any) => {
+            const id = comp.name.toLowerCase().replace(/\s+/g, '-');
+            return {
+              id,
+              name: comp.name,
+              description: comp.description,
+              score: getScore('organizational', id)
+            };
+          })
+        }
+      ];
+    });
   }, [deliveriesCriteria]);
 
   const [potentialItems, setPotentialItems] = useState<PotentialItem[]>([ // Explicitly type potentialItems state
