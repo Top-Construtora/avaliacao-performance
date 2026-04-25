@@ -141,38 +141,19 @@ const PdiManagement: React.FC = () => {
       return;
     }
 
-    const allPdiActionItems = [
-      ...pdiData.curtosPrazos.map(item => ({ ...item, prazo: 'curto' as const })),
-      ...pdiData.mediosPrazos.map(item => ({ ...item, prazo: 'medio' as const })),
-      ...pdiData.longosPrazos.map(item => ({ ...item, prazo: 'longo' as const }))
-    ];
+    const totalItems =
+      pdiData.curtosPrazos.length +
+      pdiData.mediosPrazos.length +
+      pdiData.longosPrazos.length;
 
-    if (allPdiActionItems.length === 0) {
+    if (totalItems === 0) {
       toast.error('Adicione pelo menos um item ao Plano de Desenvolvimento Individual (PDI) antes de salvar.');
       return;
     }
 
-    // Criar arrays para o formato antigo (compatibilidade)
-    const pdiGoals = allPdiActionItems.map(item => 
-      `Competência: ${item.competencia || 'N/A'}. Resultados Esperados: ${item.resultadosEsperados || 'N/A'}.`
-    );
-
-    const pdiActions = allPdiActionItems.map(item => 
-      `Como desenvolver: ${item.comoDesenvolver || 'N/A'} (Prazo: ${item.calendarizacao || 'N/A'}, Status: ${item.status || 'N/A'}, Observação: ${item.observacao || 'N/A'}).`
-    );
-
-    const pdiToSave = {
-      employeeId: pdiData.colaboradorId,
-      goals: pdiGoals,
-      actions: pdiActions,
-      resources: [],
-      timeline: pdiData.periodo,
-      items: allPdiActionItems, // Adicionar o campo items com os dados completos
-    };
-
     setIsSavingPDI(true);
     try {
-      await savePDI(pdiToSave);
+      await savePDI(pdiData);
       toast.success('PDI salvo/atualizado com sucesso!');
       
       // Recarregar o PDI após salvar para garantir sincronização

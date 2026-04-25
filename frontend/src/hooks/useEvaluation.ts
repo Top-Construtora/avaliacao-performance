@@ -396,9 +396,9 @@ export const useEvaluation = (): UseEvaluationReturn => {
     try {
       setLoading(true);
       const allItems = [
-        ...pdiData.curtosPrazos.map(i => ({ ...i, prazo: 'curto' })),
-        ...pdiData.mediosPrazos.map(i => ({ ...i, prazo: 'medio' })),
-        ...pdiData.longosPrazos.map(i => ({ ...i, prazo: 'longo' })),
+        ...(pdiData.curtosPrazos ?? []).map(i => ({ ...i, prazo: 'curto' })),
+        ...(pdiData.mediosPrazos ?? []).map(i => ({ ...i, prazo: 'medio' })),
+        ...(pdiData.longosPrazos ?? []).map(i => ({ ...i, prazo: 'longo' })),
       ];
       const result = await evaluationService.savePDI({
         employeeId: pdiData.colaboradorId,
