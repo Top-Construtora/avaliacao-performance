@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, BarChart3, Calendar, Briefcase, TrendingUp, Target, Info, Grid3x3, Mail, Cake, MessageSquare, ArrowUp, CheckCircle, AlertCircle, Lock, Loader2, FileText, Save, DollarSign } from 'lucide-react';
+import { User, BarChart3, Calendar, Briefcase, TrendingUp, Target, Info, Grid3x3, Mail, Cake, MessageSquare, ArrowUp, CheckCircle, AlertCircle, Lock, Loader2, FileText, Save, DollarSign, Download } from 'lucide-react';
 import { useEvaluation } from '../../hooks/useEvaluation';
 import { useAuth } from '../../context/AuthContext';
 import { usePeopleCommitteePermission } from '../../hooks/usePeopleCommittee';
@@ -123,6 +123,9 @@ const NineBoxMatrix = () => {
   const [isLoadingPotentialDetails, setIsLoadingPotentialDetails] = useState(false);
   const dashboardLoadedRef = useRef(false);
   const [showSalaryModal, setShowSalaryModal] = useState(false);
+  const [viewMode, setViewMode] = useState<'individual' | 'matrix'>('individual');
+  const matrixExportRef = useRef<HTMLDivElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Verificar se o usuário pode definir posição (admin ou diretor)
   const canPromote = profile?.role === 'admin' || profile?.is_admin === true || profile?.is_director === true;
@@ -599,6 +602,145 @@ const NineBoxMatrix = () => {
     return matrixConfig[key];
   };
 
+  // Extrai iniciais (ate duas) de um nome para fallback de avatar
+  const getInitials = (name: string | null | undefined): string => {
+    if (!name) return '?';
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '?';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
+
+  // Agrupa colaboradores elegiveis por quadrante (row,col) usando potencial efetivo
+  const employeesByQuadrant = useMemo(() => {
+    const groups: Record<string, typeof eligibleEmployees> = {};
+    for (let r = 1; r <= 3; r++) {
+      for (let c = 1; c <= 3; c++) {
+        groups[`${r},${c}`] = [];
+      }
+    }
+    eligibleEmployees.forEach((emp) => {
+      const effective = getEffectivePotential(emp);
+      const q = getQuadrant(Number(emp.consensus_score) || 0, effective);
+      const key = `${q.row},${q.col}`;
+      if (groups[key]) groups[key].push(emp);
+    });
+    return groups;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eligibleEmployees]);
+
+  const totalEligible = eligibleEmployees.length;
+
+  // Exporta a matriz como PDF (captura DOM via html2canvas e embute em jsPDF)
+  const handleExportPDF = async () => {
+    if (!matrixExportRef.current) return;
+    setIsExporting(true);
+    try {
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ]);
+      // Garante que as fontes web estejam carregadas antes da captura,
+      // senão html2canvas mede texto com fonte fallback e renderiza fora de lugar
+      if ((document as any).fonts?.ready) {
+        await (document as any).fonts.ready;
+      }
+
+      const canvas = await html2canvas(matrixExportRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 3,
+        useCORS: true,
+        logging: false,
+        // No PDF, expandimos as listas internas pra mostrar TODOS os colaboradores
+        // (na tela mantém scroll para não esticar a UI).
+        onclone: (_doc, cloned) => {
+          cloned.querySelectorAll<HTMLElement>('[data-ninebox-list]').forEach((el) => {
+            el.style.overflow = 'visible';
+            el.style.maxHeight = 'none';
+          });
+          cloned.querySelectorAll<HTMLElement>('[data-ninebox-box]').forEach((el) => {
+            el.style.overflow = 'visible';
+            el.style.minHeight = 'auto';
+          });
+          // html2canvas tem um bug com `truncate` (overflow:hidden + ellipsis +
+          // nowrap): mede a largura final mas pinta o texto inteiro, gerando
+          // fantasma/duplicação que aparece como letras erradas no PDF
+          // ("Box Z", "Bay 9", "Crocoimonto" etc.). Limpa em TODOS os elementos
+          // truncados dentro da área exportada — não só os nomes — e deixa o
+          // texto quebrar linha em vez de extrapolar a coluna.
+          const root = cloned.querySelector<HTMLElement>('[data-ninebox-root]') ?? cloned;
+          root.querySelectorAll<HTMLElement>('.truncate').forEach((el) => {
+            el.style.overflow = 'visible';
+            el.style.textOverflow = 'clip';
+            el.style.whiteSpace = 'normal';
+            el.style.wordBreak = 'break-word';
+          });
+          // Mesma normalização para qualquer elemento marcado explicitamente
+          // (caso o nome venha sem a classe `truncate` no futuro).
+          root.querySelectorAll<HTMLElement>('[data-ninebox-name]').forEach((el) => {
+            el.style.overflow = 'visible';
+            el.style.textOverflow = 'clip';
+            el.style.whiteSpace = 'normal';
+            el.style.wordBreak = 'break-word';
+          });
+          // `tracking-widest` (letter-spacing: 0.1em) nos labels POTENCIAL e
+          // PERFORMANCE causa o mesmo bug de duplicação/fantasma no html2canvas
+          // (PERFORMANCE saía como "PEPEORMANCE"). Zera o letter-spacing apenas
+          // no clone — visualmente quase idêntico, mas estável na captura.
+          root.querySelectorAll<HTMLElement>('.tracking-widest').forEach((el) => {
+            el.style.letterSpacing = 'normal';
+          });
+          // Garante respiro inferior/lateral pra que o label do eixo X não
+          // seja clipado pela borda do canvas (ou pela margem da página A4
+          // depois do scale).
+          if (root instanceof HTMLElement) {
+            root.style.paddingBottom = '16px';
+            root.style.paddingRight = '8px';
+          }
+        },
+      });
+      const imgData = canvas.toDataURL('image/png');
+      // PDF em paisagem para acomodar a matriz horizontal
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const titleH = 12;
+      const availW = pageW - margin * 2;
+      const availH = pageH - margin * 2 - titleH;
+      // Mantém proporção da imagem dentro da área disponível
+      const imgW = canvas.width;
+      const imgH = canvas.height;
+      const ratio = Math.min(availW / imgW, availH / imgH);
+      const drawW = imgW * ratio;
+      const drawH = imgH * ratio;
+      const drawX = margin + (availW - drawW) / 2;
+      const drawY = margin + titleH;
+
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Matriz 9-Box - Distribuição dos Colaboradores', pageW / 2, margin + 6, { align: 'center' });
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(
+        `Gerado em ${new Date().toLocaleDateString('pt-BR')} - Total: ${totalEligible} colaboradores`,
+        pageW / 2,
+        margin + 11,
+        { align: 'center' }
+      );
+      pdf.addImage(imgData, 'PNG', drawX, drawY, drawW, drawH);
+
+      const stamp = new Date().toISOString().slice(0, 10);
+      pdf.save(`matriz-9box-${stamp}.pdf`);
+      toast.success('PDF exportado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao exportar PDF:', error);
+      toast.error('Erro ao exportar PDF');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   // Formatar data de admissão
   const formatJoinDate = (date: string | null | undefined) => {
     if (!date) return '-';
@@ -688,7 +830,39 @@ const NineBoxMatrix = () => {
           </p>
         </div>
 
-        {/* Seleção de Colaborador */}
+        {/* Tabs - alterna entre análise individual e visão geral da matriz.
+            A aba "Visão Geral" é restrita a admins e diretores (mesma checagem de canPromote). */}
+        {canPromote && (
+          <div className="flex gap-1 border-b border-gray-200 dark:border-yt-border mb-4 sm:mb-6 overflow-x-auto">
+            <button
+              type="button"
+              onClick={() => setViewMode('individual')}
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                viewMode === 'individual'
+                  ? 'border-primary-500 text-primary-700 dark:text-primary-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+              }`}
+            >
+              <User className="h-4 w-4" />
+              Análise Individual
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('matrix')}
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                viewMode === 'matrix'
+                  ? 'border-primary-500 text-primary-700 dark:text-primary-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+              }`}
+            >
+              <Grid3x3 className="h-4 w-4" />
+              Visão Geral da Matriz
+            </button>
+          </div>
+        )}
+
+        {/* Seleção de Colaborador (apenas no modo individual) */}
+        {viewMode === 'individual' && (
         <div className="bg-gray-50 dark:bg-yt-elevated/50 rounded-lg sm:rounded-xl p-4 sm:p-6">
           <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3 sm:mb-4 flex items-center">
             <User className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-gray-600 dark:text-gray-400" />
@@ -892,10 +1066,11 @@ const NineBoxMatrix = () => {
             </div>
           )}
         </div>
+        )}
       </motion.div>
 
       {/* Visualização da Matriz */}
-      {selectedEvaluation && (
+      {viewMode === 'individual' && selectedEvaluation && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1174,7 +1349,7 @@ const NineBoxMatrix = () => {
       )}
 
       {/* Notas de Potencial - Só exibe se potentialDetails tiver dados */}
-      {selectedEvaluation && potentialDetails && Object.keys(potentialDetails).length > 0 && (
+      {viewMode === 'individual' && selectedEvaluation && potentialDetails && Object.keys(potentialDetails).length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1286,7 +1461,7 @@ const NineBoxMatrix = () => {
       )}
 
       {/* Deliberações do Comitê */}
-      {selectedEvaluation && (
+      {viewMode === 'individual' && selectedEvaluation && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1329,8 +1504,187 @@ const NineBoxMatrix = () => {
         </motion.div>
       )}
 
+      {/* Visão Geral da Matriz - Todos os colaboradores posicionados em seus quadrantes.
+          Restrita a admins e diretores. */}
+      {viewMode === 'matrix' && canPromote && eligibleEmployees.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-naue-white dark:bg-yt-surface rounded-2xl shadow-sm hover:shadow-md dark:shadow-lg border border-naue-border-gray dark:border-yt-border p-4 sm:p-6 lg:p-8"
+        >
+          <div className="flex items-center justify-between mb-4 sm:mb-6 flex-wrap gap-2">
+            <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-800 dark:text-gray-100 flex items-center">
+              <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-gray-600 dark:text-gray-400" />
+              Distribuição dos Colaboradores na Matriz
+            </h2>
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                Total: <span className="font-semibold text-gray-700 dark:text-gray-200">{totalEligible}</span> colaboradores
+              </span>
+              {/* Botão de exportação em PDF */}
+              <Button
+                type="button"
+                onClick={handleExportPDF}
+                disabled={isExporting}
+                variant="primary"
+                size="sm"
+              >
+                {isExporting ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Exportando...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <Download className="h-4 w-4" />
+                    Exportar PDF
+                  </span>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Layout: eixos + grid (área capturada na exportação PNG) */}
+          <div ref={matrixExportRef} data-ninebox-root className="flex gap-2 sm:gap-3 bg-naue-white dark:bg-yt-surface">
+            {/* Eixo Y (Potencial) */}
+            <div className="flex flex-col items-center">
+              <div className="flex-1 flex items-center">
+                <span className="text-xs sm:text-sm font-bold text-naue-black dark:text-gray-300 uppercase tracking-widest -rotate-90 whitespace-nowrap">
+                  Potencial
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-col">
+              {/* Labels Y + grid */}
+              <div className="flex">
+                {/* Labels do eixo Y */}
+                <div className="flex flex-col justify-around mr-2 sm:mr-3 text-xs sm:text-sm font-semibold text-gray-600 dark:text-gray-400">
+                  <span className="flex-1 flex items-center">Alto</span>
+                  <span className="flex-1 flex items-center">Médio</span>
+                  <span className="flex-1 flex items-center">Baixo</span>
+                </div>
+
+                {/* Grid 3x3 com colaboradores - boxes têm altura fixa, lista interna rola */}
+                <div className="flex-1 grid grid-cols-3 grid-rows-3 gap-2 sm:gap-3">
+                  {[3, 2, 1].map((row) => (
+                    [1, 2, 3].map((col) => {
+                      const key = `${row},${col}`;
+                      const config = matrixConfig[key];
+                      const employees = employeesByQuadrant[key] || [];
+                      const count = employees.length;
+                      const percent = totalEligible > 0 ? ((count / totalEligible) * 100).toFixed(1) : '0';
+                      const boxNumber = (col - 1) * 3 + row;
+                      const boxName = getBoxDescriptiveName(boxNumber.toString());
+                      const isDarkBox = key === '3,3';
+
+                      return (
+                        <div
+                          key={key}
+                          data-ninebox-box
+                          className={`relative flex flex-col rounded-lg border-2 ${config.bgColor} ${config.borderColor} min-h-[180px] sm:min-h-[220px] p-2 sm:p-3 overflow-hidden`}
+                        >
+                          {/* Header do box */}
+                          <div className={`flex items-center justify-between mb-2 pb-1.5 border-b ${isDarkBox ? 'border-white/20' : 'border-current/20'}`}>
+                            <div className="min-w-0 flex-1">
+                              <p className={`text-[10px] sm:text-xs font-bold ${config.textColor} truncate`} title={`Box ${boxNumber} - ${boxName}`}>
+                                Box {boxNumber}
+                              </p>
+                              <p className={`text-[9px] sm:text-[10px] ${config.textColor} opacity-80 truncate`}>
+                                {boxName}
+                              </p>
+                            </div>
+                            <span className={`text-[10px] sm:text-xs font-bold ${config.textColor} flex items-center gap-1 flex-shrink-0`}>
+                              <User className="h-3 w-3" />
+                              {count} <span className="opacity-70">({percent}%)</span>
+                            </span>
+                          </div>
+
+                          {/* Lista de colaboradores - rola se exceder a altura do box */}
+                          <div data-ninebox-list className="flex-1 space-y-1 overflow-y-auto pr-0.5">
+                            {employees.length === 0 ? (
+                              <div className={`h-full flex items-center justify-center ${config.textColor} opacity-50`}>
+                                <span className="text-[10px] sm:text-xs italic">Vazio</span>
+                              </div>
+                            ) : (
+                              employees.map((emp) => {
+                                const photo = emp.user?.profile_image;
+                                const name = emp.employee_name || emp.user?.name || 'Sem nome';
+                                return (
+                                  <button
+                                    key={emp.employee_id}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedEmployee(emp.employee_id);
+                                      setViewMode('individual');
+                                    }}
+                                    title={`${name}${emp.position ? ` - ${emp.position}` : ''}`}
+                                    className={`w-full flex items-center gap-1.5 sm:gap-2 px-1.5 py-1 rounded-md transition-colors text-left shadow-sm ${
+                                      isDarkBox
+                                        ? 'bg-white/15 hover:bg-white/25 ring-1 ring-white/20'
+                                        : 'bg-white dark:bg-yt-elevated hover:bg-gray-50 dark:hover:bg-black/30 ring-1 ring-black/5 dark:ring-white/10'
+                                    }`}
+                                  >
+                                    {photo ? (
+                                      <img
+                                        src={photo}
+                                        alt={name}
+                                        className="w-6 h-6 sm:w-7 sm:h-7 rounded-full object-cover flex-shrink-0 ring-1 ring-white/50"
+                                      />
+                                    ) : (
+                                      <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[9px] sm:text-[10px] font-bold ${
+                                        isDarkBox
+                                          ? 'bg-white/20 text-white'
+                                          : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200'
+                                      }`}>
+                                        {getInitials(name)}
+                                      </div>
+                                    )}
+                                    <span data-ninebox-name className={`text-[10px] sm:text-xs font-medium ${config.textColor} truncate flex-1`}>
+                                      {name}
+                                    </span>
+                                  </button>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ))}
+                </div>
+              </div>
+
+              {/* Labels do eixo X */}
+              <div className="flex mt-2 sm:mt-3 ml-12 sm:ml-14">
+                <div className="flex-1 grid grid-cols-3 text-center text-xs sm:text-sm font-semibold text-gray-600 dark:text-gray-400">
+                  <span>Baixo</span>
+                  <span>Médio</span>
+                  <span>Alto</span>
+                </div>
+              </div>
+
+              {/* Título do eixo X */}
+              <div className="flex justify-center mt-2 sm:mt-3 ml-12 sm:ml-14">
+                <span className="text-xs sm:text-sm font-bold text-naue-black dark:text-gray-300 uppercase tracking-widest">
+                  Performance
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Dica de interação */}
+          <div className="mt-4 sm:mt-6 flex items-start gap-2 px-3 py-2 bg-gray-50 dark:bg-yt-elevated/50 rounded-lg border border-gray-200 dark:border-yt-border">
+            <Info className="h-4 w-4 text-gray-500 dark:text-gray-400 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              Clique em um colaborador para ver sua análise individual completa.
+            </p>
+          </div>
+        </motion.div>
+      )}
+
       {/* Empty State - Nenhum colaborador selecionado */}
-      {!selectedEmployee && eligibleEmployees.length > 0 && (
+      {viewMode === 'individual' && !selectedEmployee && eligibleEmployees.length > 0 && (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
