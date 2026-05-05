@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { BookOpen, Calendar, Info, FileText, TrendingUp, Target } from 'lucide-react';
+import { BookOpen, Calendar, Info, FileText, TrendingUp, Target, Download, FileType } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../config/api';
+import { supabase } from '../../lib/supabase';
 
 interface ActionItem {
   id: string;
@@ -43,6 +44,47 @@ const MyPdi: React.FC = () => {
   const { user, profile } = useAuth();
   const [pdiData, setPdiData] = useState<PdiData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exportingFormat, setExportingFormat] = useState<'pdf' | 'docx' | null>(null);
+
+  const handleExport = async (format: 'pdf' | 'docx') => {
+    const userId = user?.id || profile?.id;
+    if (!userId) return;
+
+    try {
+      setExportingFormat(format);
+      const apiUrl = import.meta.env.VITE_API_URL ||
+        (window.location.hostname.includes('vercel.app')
+          ? 'https://avaliacao-performance-rl-construcoes.onrender.com/api'
+          : '/api');
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+
+      const response = await fetch(`${apiUrl}/pdi/${userId}/export/${format}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || 'Erro ao exportar PDI');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const safeName = (pdiData?.colaborador || 'colaborador').replace(/[^a-zA-Z0-9]/g, '_');
+      link.download = `pdi_${safeName}.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('PDI exportado com sucesso!');
+    } catch (error: any) {
+      console.error('Erro ao exportar PDI:', error);
+      toast.error('Erro ao exportar PDI.');
+    } finally {
+      setExportingFormat(null);
+    }
+  };
 
   useEffect(() => {
     const fetchPdi = async () => {
@@ -306,6 +348,24 @@ const MyPdi: React.FC = () => {
               </h1>
               <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm sm:text-base">Plano de Desenvolvimento Individual</p>
             </div>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button
+              onClick={() => handleExport('pdf')}
+              disabled={exportingFormat !== null}
+              className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-primary-900 hover:bg-primary-800 dark:bg-stone-700 dark:hover:bg-stone-600 text-white text-sm font-medium shadow-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              {exportingFormat === 'pdf' ? 'Exportando...' : 'Exportar PDF'}
+            </button>
+            <button
+              onClick={() => handleExport('docx')}
+              disabled={exportingFormat !== null}
+              className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl border border-primary-900 dark:border-stone-600 text-primary-900 dark:text-stone-300 hover:bg-primary-50 dark:hover:bg-yt-elevated text-sm font-medium shadow-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <FileType className="h-4 w-4 mr-2" />
+              {exportingFormat === 'docx' ? 'Exportando...' : 'Exportar DOCX'}
+            </button>
           </div>
         </div>
 

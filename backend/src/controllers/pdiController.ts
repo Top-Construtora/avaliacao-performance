@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { pdiService } from '../services/pdiService';
 import { AuthRequest } from '../middleware/auth';
 import { PDIUtils } from '../utils/pdiUtils';
+import { exportService } from '../services/exportService';
 
 export const pdiController = {
   // Salvar PDI
@@ -122,6 +123,115 @@ export const pdiController = {
       });
     } catch (error) {
       console.error('Erro ao buscar PDIs por ciclo:', error);
+      next(error);
+    }
+  },
+
+  // Exportar PDI individual em PDF
+  async exportPDIToPDF(req: Request, res: Response, next: NextFunction) {
+    try {
+      const authReq = req as AuthRequest;
+      const { employeeId } = req.params;
+
+      // Permissao: o proprio colaborador, lideres, diretores e admins
+      const user = authReq.user;
+      const isSelf = user?.id === employeeId;
+      const isPrivileged = !!(user?.is_admin || user?.is_director || user?.is_leader);
+
+      if (!isSelf && !isPrivileged) {
+        return res.status(403).json({
+          success: false,
+          error: 'Voce nao tem permissao para exportar este PDI'
+        });
+      }
+
+      const { buffer, employeeName } = await exportService.exportPDIToPDF(authReq.supabase, employeeId);
+      const safeName = (employeeName || 'colaborador').replace(/[^a-zA-Z0-9]/g, '_');
+      const fileName = `pdi_${safeName}_${Date.now()}.pdf`;
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      res.setHeader('Content-Length', buffer.length.toString());
+      res.send(buffer);
+    } catch (error: any) {
+      console.error('[PDI PDF Export] Erro ao exportar:', error);
+      if (error?.message === 'PDI nao encontrado para este colaborador') {
+        return res.status(404).json({ success: false, error: error.message });
+      }
+      next(error);
+    }
+  },
+
+  // Exportar todos os PDIs em um unico PDF (admin/diretor)
+  async exportAllPDIsToPDF(req: Request, res: Response, next: NextFunction) {
+    try {
+      const authReq = req as AuthRequest;
+      const buffer = await exportService.exportAllPDIsToPDF(authReq.supabase);
+      const fileName = `pdis_consolidado_${Date.now()}.pdf`;
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      res.setHeader('Content-Length', buffer.length.toString());
+      res.send(buffer);
+    } catch (error: any) {
+      console.error('[PDI PDF Export Bulk] Erro ao exportar:', error);
+      if (error?.message === 'Nenhum PDI ativo encontrado') {
+        return res.status(404).json({ success: false, error: error.message });
+      }
+      next(error);
+    }
+  },
+
+  // Exportar PDI individual em DOCX
+  async exportPDIToDocx(req: Request, res: Response, next: NextFunction) {
+    try {
+      const authReq = req as AuthRequest;
+      const { employeeId } = req.params;
+
+      const user = authReq.user;
+      const isSelf = user?.id === employeeId;
+      const isPrivileged = !!(user?.is_admin || user?.is_director || user?.is_leader);
+
+      if (!isSelf && !isPrivileged) {
+        return res.status(403).json({
+          success: false,
+          error: 'Voce nao tem permissao para exportar este PDI'
+        });
+      }
+
+      const { buffer, employeeName } = await exportService.exportPDIToDocx(authReq.supabase, employeeId);
+      const safeName = (employeeName || 'colaborador').replace(/[^a-zA-Z0-9]/g, '_');
+      const fileName = `pdi_${safeName}_${Date.now()}.docx`;
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      res.setHeader('Content-Length', buffer.length.toString());
+      res.send(buffer);
+    } catch (error: any) {
+      console.error('[PDI DOCX Export] Erro ao exportar:', error);
+      if (error?.message === 'PDI nao encontrado para este colaborador') {
+        return res.status(404).json({ success: false, error: error.message });
+      }
+      next(error);
+    }
+  },
+
+  // Exportar todos os PDIs em DOCX (admin/diretor)
+  async exportAllPDIsToDocx(req: Request, res: Response, next: NextFunction) {
+    try {
+      const authReq = req as AuthRequest;
+      const buffer = await exportService.exportAllPDIsToDocx(authReq.supabase);
+      const fileName = `pdis_consolidado_${Date.now()}.docx`;
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      res.setHeader('Content-Length', buffer.length.toString());
+      res.send(buffer);
+    } catch (error: any) {
+      console.error('[PDI DOCX Export Bulk] Erro ao exportar:', error);
+      if (error?.message === 'Nenhum PDI ativo encontrado') {
+        return res.status(404).json({ success: false, error: error.message });
+      }
       next(error);
     }
   }

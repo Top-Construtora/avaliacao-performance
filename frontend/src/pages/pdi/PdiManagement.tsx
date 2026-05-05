@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { Users, BookOpen, Info, Save, Send } from 'lucide-react';
+import { Users, BookOpen, Info, Save, Send, Download, FileDown, FileType } from 'lucide-react';
 import Button from '../../components/Button';
 import PotentialAndPDI from '../../components/PotentialAndPDI';
 import { useEvaluation } from '../../hooks/useEvaluation';
 import { useAuth } from '../../context/AuthContext';
 import type { UserWithDetails } from '../../types/supabase';
+import { supabase } from '../../lib/supabase';
 
 // Define ActionItem and PdiData interfaces here to ensure consistency
 interface ActionItem {
@@ -52,6 +53,87 @@ const PdiManagement: React.FC = () => {
   const [loadingPDI, setLoadingPDI] = useState<boolean>(false);
   const [isSavingPDI, setIsSavingPDI] = useState<boolean>(false);
   const [availableEmployees, setAvailableEmployees] = useState<UserWithDetails[]>([]);
+  type ExportFormat = 'pdf' | 'docx';
+  const [exportingIndividual, setExportingIndividual] = useState<ExportFormat | null>(null);
+  const [exportingAll, setExportingAll] = useState<ExportFormat | null>(null);
+
+  const canExportAll = !!(user?.is_admin || user?.is_director);
+
+  const getApiUrl = () =>
+    import.meta.env.VITE_API_URL ||
+    (window.location.hostname.includes('vercel.app')
+      ? 'https://avaliacao-performance-rl-construcoes.onrender.com/api'
+      : '/api');
+
+  const downloadBlob = (blob: Blob, fileName: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleExportIndividual = async (format: ExportFormat) => {
+    if (!selectedEmployeeId) {
+      toast.error('Selecione um colaborador antes de exportar.');
+      return;
+    }
+    try {
+      setExportingIndividual(format);
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      const response = await fetch(`${getApiUrl()}/pdi/${selectedEmployeeId}/export/${format}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!response.ok) {
+        if (response.status === 404) {
+          toast.error('Este colaborador ainda nao possui PDI cadastrado.');
+          return;
+        }
+        throw new Error('Falha ao exportar PDI');
+      }
+      const blob = await response.blob();
+      const safeName = (pdiData.colaborador || 'colaborador').replace(/[^a-zA-Z0-9]/g, '_');
+      downloadBlob(blob, `pdi_${safeName}.${format}`);
+      toast.success('PDI exportado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao exportar PDI:', error);
+      toast.error('Erro ao exportar PDI.');
+    } finally {
+      setExportingIndividual(null);
+    }
+  };
+
+  const handleExportAll = async (format: ExportFormat) => {
+    try {
+      setExportingAll(format);
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      const response = await fetch(`${getApiUrl()}/pdi/export/all/${format}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!response.ok) {
+        if (response.status === 404) {
+          toast.error('Nenhum PDI ativo encontrado para exportar.');
+          return;
+        }
+        if (response.status === 403) {
+          toast.error('Voce nao tem permissao para exportar todos os PDIs.');
+          return;
+        }
+        throw new Error('Falha ao exportar PDIs');
+      }
+      const blob = await response.blob();
+      downloadBlob(blob, `pdis_consolidado_${Date.now()}.${format}`);
+      toast.success('PDIs exportados com sucesso!');
+    } catch (error) {
+      console.error('Erro ao exportar PDIs:', error);
+      toast.error('Erro ao exportar PDIs.');
+    } finally {
+      setExportingAll(null);
+    }
+  };
 
   // Load subordinates and determine which employees to show
   useEffect(() => {
@@ -198,6 +280,48 @@ const PdiManagement: React.FC = () => {
               </h1>
               <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm sm:text-base">Visualize e edite Planos de Desenvolvimento Individual</p>
             </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            {selectedEmployeeId && (
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={() => handleExportIndividual('pdf')}
+                  disabled={exportingIndividual !== null || loadingPDI}
+                  className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-primary-900 hover:bg-primary-800 dark:bg-stone-700 dark:hover:bg-stone-600 text-white text-sm font-medium shadow-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  {exportingIndividual === 'pdf' ? 'Exportando...' : 'Exportar PDF'}
+                </button>
+                <button
+                  onClick={() => handleExportIndividual('docx')}
+                  disabled={exportingIndividual !== null || loadingPDI}
+                  className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-primary-900 hover:bg-primary-800 dark:bg-stone-700 dark:hover:bg-stone-600 text-white text-sm font-medium shadow-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <FileType className="h-4 w-4 mr-2" />
+                  {exportingIndividual === 'docx' ? 'Exportando...' : 'Exportar DOCX'}
+                </button>
+              </div>
+            )}
+            {canExportAll && (
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={() => handleExportAll('pdf')}
+                  disabled={exportingAll !== null}
+                  className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl border border-primary-900 dark:border-stone-600 text-primary-900 dark:text-stone-300 hover:bg-primary-50 dark:hover:bg-yt-elevated text-sm font-medium shadow-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <FileDown className="h-4 w-4 mr-2" />
+                  {exportingAll === 'pdf' ? 'Exportando...' : 'Todos (PDF)'}
+                </button>
+                <button
+                  onClick={() => handleExportAll('docx')}
+                  disabled={exportingAll !== null}
+                  className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl border border-primary-900 dark:border-stone-600 text-primary-900 dark:text-stone-300 hover:bg-primary-50 dark:hover:bg-yt-elevated text-sm font-medium shadow-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <FileType className="h-4 w-4 mr-2" />
+                  {exportingAll === 'docx' ? 'Exportando...' : 'Todos (DOCX)'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
