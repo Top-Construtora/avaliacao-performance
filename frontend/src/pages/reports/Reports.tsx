@@ -19,7 +19,7 @@ import {
 import Button from '../../components/Button';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import { toast } from 'react-hot-toast';
 import { useEvaluation } from '../../hooks/useEvaluation';
 import { evaluationService } from '../../services/evaluation.service';
@@ -51,6 +51,7 @@ const Reports = () => {
   const [users, setUsers] = useState<UserWithDetails[]>([]);
   const [dashboard, setDashboard] = useState<CycleDashboard[]>([]);
   const [consensusNotesByEmployee, setConsensusNotesByEmployee] = useState<Record<string, any>>({});
+  const [committeeDeliberationsByEmployee, setCommitteeDeliberationsByEmployee] = useState<Record<string, string>>({});
 
   // Estados para os cards de visão geral
   const [summaryData, setSummaryData] = useState({
@@ -113,26 +114,32 @@ const Reports = () => {
       const dashboardData = await evaluationService.getCycleDashboard(cycleId);
       setDashboard(dashboardData);
 
-      // Carregar notas dos consensos (contém comentários por critério) para uso no export
+      // Carregar notas dos consensos + deliberações do comitê de gente para uso no export
       const { data: consensusRows, error: consensusError } = await supabase
         .from('consensus_evaluations')
-        .select('employee_id, notes')
+        .select('employee_id, notes, committee_deliberations')
         .eq('cycle_id', cycleId);
 
       if (consensusError) {
-        console.warn('Não foi possível carregar comentários do consenso:', consensusError);
+        console.warn('Não foi possível carregar dados do consenso:', consensusError);
       }
 
       const notesMap: Record<string, any> = {};
-      (consensusRows || []).forEach((row: { employee_id: string; notes: string | null }) => {
-        if (!row.notes) return;
-        try {
-          notesMap[row.employee_id] = typeof row.notes === 'string' ? JSON.parse(row.notes) : row.notes;
-        } catch {
-          notesMap[row.employee_id] = { rawNotes: row.notes };
+      const deliberationsMap: Record<string, string> = {};
+      (consensusRows || []).forEach((row: { employee_id: string; notes: string | null; committee_deliberations: string | null }) => {
+        if (row.notes) {
+          try {
+            notesMap[row.employee_id] = typeof row.notes === 'string' ? JSON.parse(row.notes) : row.notes;
+          } catch {
+            notesMap[row.employee_id] = { rawNotes: row.notes };
+          }
+        }
+        if (row.committee_deliberations) {
+          deliberationsMap[row.employee_id] = row.committee_deliberations;
         }
       });
       setConsensusNotesByEmployee(notesMap);
+      setCommitteeDeliberationsByEmployee(deliberationsMap);
     } catch (error) {
       console.error('Erro ao carregar dashboard:', error);
       toast.error('Erro ao carregar dados do dashboard');
@@ -356,7 +363,30 @@ const Reports = () => {
   };
 
   const exportExcel = () => {
-    const data = filteredData.map((item: CycleDashboard) => {
+    // Cores da marca (primary = #003b2b)
+    const PRIMARY = '003B2B';
+    const PRIMARY_LIGHT = 'E6F4F0';
+    const BORDER = 'CCCCCC';
+
+    const headers = [
+      'Nome',
+      'Cargo',
+      'Departamento',
+      'Status Autoavaliação',
+      'Nota Autoavaliação',
+      'Status Avaliação do Líder',
+      'Nota Líder (Performance)',
+      'Nota Líder (Potencial)',
+      'Status Consenso',
+      'Nota Consenso (Performance)',
+      'Nota Consenso (Potencial)',
+      'Posição Nine Box',
+      'PDI',
+      'Comentários da Reunião de Consenso',
+      'Deliberações do Comitê de Gente',
+    ];
+
+    const rows = filteredData.map((item: CycleDashboard) => {
       const user = users.find(u => u.id === item.employee_id);
       const deptName = item.department_name ||
         (user?.teams && user.teams[0] ?
@@ -364,44 +394,103 @@ const Reports = () => {
 
       const notes = consensusNotesByEmployee[item.employee_id];
       const consensusComments = formatConsensusComments(notes);
+      const committeeComments = committeeDeliberationsByEmployee[item.employee_id] || '';
 
-      return {
-        'Nome': user?.name || '-',
-        'Cargo': user?.position || '-',
-        'Departamento': deptName,
-        'Status Autoavaliação': getStatusLabel(item.self_evaluation_status),
-        'Nota Autoavaliação': formatScore(item.self_evaluation_score),
-        'Status Avaliação do Líder': getStatusLabel(item.leader_evaluation_status),
-        'Nota Líder (Performance)': formatScore(item.leader_evaluation_score),
-        'Nota Líder (Potencial)': formatScore(item.leader_potential_score),
-        'Status Consenso': getStatusLabel(item.consensus_status),
-        'Nota Consenso (Performance)': formatScore(item.consensus_score ?? item.consensus_performance_score),
-        'Nota Consenso (Potencial)': formatScore(item.potential_score ?? item.consensus_potential_score),
-        'Posição Nine Box': item.ninebox_position || 'Pendente',
-        'PDI': item.ninebox_position ? 'Definido' : 'Pendente',
-        'Comentários da Reunião de Consenso / Comitê de Gente': consensusComments
-      };
+      return [
+        user?.name || '-',
+        user?.position || '-',
+        deptName,
+        getStatusLabel(item.self_evaluation_status),
+        formatScore(item.self_evaluation_score),
+        getStatusLabel(item.leader_evaluation_status),
+        formatScore(item.leader_evaluation_score),
+        formatScore(item.leader_potential_score),
+        getStatusLabel(item.consensus_status),
+        formatScore(item.consensus_score ?? item.consensus_performance_score),
+        formatScore(item.potential_score ?? item.consensus_potential_score),
+        item.ninebox_position || 'Pendente',
+        item.ninebox_position ? 'Definido' : 'Pendente',
+        consensusComments,
+        committeeComments,
+      ];
     });
 
-    const ws = XLSX.utils.json_to_sheet(data);
+    const aoa = [headers, ...rows];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
 
-    // Larguras de coluna para facilitar leitura no Excel
+    // Larguras
     ws['!cols'] = [
       { wch: 28 }, // Nome
       { wch: 24 }, // Cargo
       { wch: 22 }, // Departamento
       { wch: 18 }, // Status Auto
       { wch: 16 }, // Nota Auto
-      { wch: 20 }, // Status Líder
-      { wch: 18 }, // Nota Líder Perf
-      { wch: 18 }, // Nota Líder Pot
+      { wch: 22 }, // Status Líder
+      { wch: 20 }, // Nota Líder Perf
+      { wch: 20 }, // Nota Líder Pot
       { wch: 18 }, // Status Consenso
-      { wch: 20 }, // Nota Consenso Perf
-      { wch: 20 }, // Nota Consenso Pot
+      { wch: 22 }, // Nota Consenso Perf
+      { wch: 22 }, // Nota Consenso Pot
       { wch: 14 }, // Nine Box
-      { wch: 10 }, // PDI
-      { wch: 70 }, // Comentários
+      { wch: 12 }, // PDI
+      { wch: 60 }, // Comentários Consenso
+      { wch: 60 }, // Deliberações Comitê
     ];
+
+    // Congelar primeira linha (header) e primeira coluna (Nome) — facilita rolagem
+    ws['!freeze'] = { xSplit: 1, ySplit: 1 };
+    ws['!views'] = [{ state: 'frozen', xSplit: 1, ySplit: 1 }];
+
+    // Auto-filter no header
+    const lastCol = XLSX.utils.encode_col(headers.length - 1);
+    const lastRow = rows.length + 1;
+    ws['!autofilter'] = { ref: `A1:${lastCol}${lastRow}` };
+
+    // Estilo do header
+    const headerStyle = {
+      font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 },
+      fill: { patternType: 'solid', fgColor: { rgb: PRIMARY } },
+      alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+      border: {
+        top: { style: 'thin', color: { rgb: PRIMARY } },
+        bottom: { style: 'thin', color: { rgb: PRIMARY } },
+        left: { style: 'thin', color: { rgb: PRIMARY } },
+        right: { style: 'thin', color: { rgb: PRIMARY } },
+      },
+    };
+    headers.forEach((_, idx) => {
+      const ref = XLSX.utils.encode_cell({ r: 0, c: idx });
+      if (ws[ref]) ws[ref].s = headerStyle;
+    });
+
+    // Estilo das células de dados: bordas suaves, wrap nos comentários, zebrado leve
+    const baseCell = {
+      alignment: { vertical: 'top', wrapText: true },
+      border: {
+        top: { style: 'thin', color: { rgb: BORDER } },
+        bottom: { style: 'thin', color: { rgb: BORDER } },
+        left: { style: 'thin', color: { rgb: BORDER } },
+        right: { style: 'thin', color: { rgb: BORDER } },
+      },
+    };
+    const nameCellExtra = { font: { bold: true } };
+    const zebraFill = { patternType: 'solid', fgColor: { rgb: PRIMARY_LIGHT } };
+
+    rows.forEach((_, rIdx) => {
+      const isZebra = rIdx % 2 === 1;
+      headers.forEach((_, cIdx) => {
+        const ref = XLSX.utils.encode_cell({ r: rIdx + 1, c: cIdx });
+        if (!ws[ref]) return;
+        ws[ref].s = {
+          ...baseCell,
+          ...(cIdx === 0 ? nameCellExtra : {}),
+          ...(isZebra ? { fill: zebraFill } : {}),
+        };
+      });
+    });
+
+    // Altura padrão das linhas (acomoda wrap e comentários)
+    ws['!rows'] = [{ hpx: 32 }, ...rows.map(() => ({ hpx: 24 }))];
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Avaliações');
