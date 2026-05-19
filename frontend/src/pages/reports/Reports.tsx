@@ -24,6 +24,7 @@ import { toast } from 'react-hot-toast';
 import { useEvaluation } from '../../hooks/useEvaluation';
 import { evaluationService } from '../../services/evaluation.service';
 import { departmentsService, usersService } from '../../services/supabase.service';
+import { supabase } from '../../lib/supabase';
 import type { Department, UserWithDetails } from '../../types/supabase';
 import type { CycleDashboard, EvaluationCycle } from '../../types/evaluation.types';
 
@@ -49,6 +50,7 @@ const Reports = () => {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [users, setUsers] = useState<UserWithDetails[]>([]);
   const [dashboard, setDashboard] = useState<CycleDashboard[]>([]);
+  const [consensusNotesByEmployee, setConsensusNotesByEmployee] = useState<Record<string, any>>({});
 
   // Estados para os cards de visão geral
   const [summaryData, setSummaryData] = useState({
@@ -110,10 +112,52 @@ const Reports = () => {
     try {
       const dashboardData = await evaluationService.getCycleDashboard(cycleId);
       setDashboard(dashboardData);
+
+      // Carregar notas dos consensos (contém comentários por critério) para uso no export
+      const { data: consensusRows, error: consensusError } = await supabase
+        .from('consensus_evaluations')
+        .select('employee_id, notes')
+        .eq('cycle_id', cycleId);
+
+      if (consensusError) {
+        console.warn('Não foi possível carregar comentários do consenso:', consensusError);
+      }
+
+      const notesMap: Record<string, any> = {};
+      (consensusRows || []).forEach((row: { employee_id: string; notes: string | null }) => {
+        if (!row.notes) return;
+        try {
+          notesMap[row.employee_id] = typeof row.notes === 'string' ? JSON.parse(row.notes) : row.notes;
+        } catch {
+          notesMap[row.employee_id] = { rawNotes: row.notes };
+        }
+      });
+      setConsensusNotesByEmployee(notesMap);
     } catch (error) {
       console.error('Erro ao carregar dashboard:', error);
       toast.error('Erro ao carregar dados do dashboard');
     }
+  };
+
+  // Achata observations (objeto com chave = id do critério, valor = comentário)
+  // em texto multilinha pronto para Excel.
+  const formatConsensusComments = (notes: any): string => {
+    if (!notes) return '';
+    if (notes.rawNotes) return String(notes.rawNotes);
+    const observations = notes.observations;
+    if (!observations || typeof observations !== 'object') return '';
+    const lines: string[] = [];
+    Object.entries(observations).forEach(([key, value]) => {
+      if (value && String(value).trim()) {
+        lines.push(`${key}: ${value}`);
+      }
+    });
+    return lines.join('\n');
+  };
+
+  const formatScore = (score: number | null | undefined): string => {
+    if (score === null || score === undefined) return '-';
+    return Number(score).toFixed(2);
   };
 
   // Calcular dados do resumo sempre que o dashboard mudar
@@ -290,26 +334,27 @@ const Reports = () => {
         user?.name || '-',
         user?.position || '-',
         deptName,
-        getStatusLabel(item.self_evaluation_status),
-        getStatusLabel(item.leader_evaluation_status),
-        getStatusLabel(item.consensus_status),
+        formatScore(item.self_evaluation_score),
+        formatScore(item.leader_evaluation_score),
+        formatScore(item.consensus_score ?? item.consensus_performance_score),
+        formatScore(item.potential_score ?? item.consensus_potential_score ?? item.leader_potential_score),
         item.ninebox_position || 'Pendente'
       ];
     });
 
     doc.autoTable({
-      head: [['Nome', 'Cargo', 'Departamento', 'Autoavaliação', 'Líder', 'Consenso', 'Nine Box']],
+      head: [['Nome', 'Cargo', 'Departamento', 'Nota Auto', 'Nota Líder', 'Nota Consenso', 'Potencial', 'Nine Box']],
       body: tableData,
       startY: 40,
       theme: 'grid',
       styles: { fontSize: 8 },
       headStyles: { fillColor: [22, 101, 52] }
     });
-    
+
     doc.save('relatorio_avaliacoes.pdf');
     toast.success('Relatório PDF gerado com sucesso!');
   };
-  
+
   const exportExcel = () => {
     const data = filteredData.map((item: CycleDashboard) => {
       const user = users.find(u => u.id === item.employee_id);
@@ -317,22 +362,50 @@ const Reports = () => {
         (user?.teams && user.teams[0] ?
           departments.find(d => d.id === user.teams![0].department_id)?.name || '-' : '-');
 
+      const notes = consensusNotesByEmployee[item.employee_id];
+      const consensusComments = formatConsensusComments(notes);
+
       return {
         'Nome': user?.name || '-',
         'Cargo': user?.position || '-',
         'Departamento': deptName,
-        'Autoavaliação': getStatusLabel(item.self_evaluation_status),
-        'Avaliação do Líder': getStatusLabel(item.leader_evaluation_status),
-        'Consenso': getStatusLabel(item.consensus_status),
+        'Status Autoavaliação': getStatusLabel(item.self_evaluation_status),
+        'Nota Autoavaliação': formatScore(item.self_evaluation_score),
+        'Status Avaliação do Líder': getStatusLabel(item.leader_evaluation_status),
+        'Nota Líder (Performance)': formatScore(item.leader_evaluation_score),
+        'Nota Líder (Potencial)': formatScore(item.leader_potential_score),
+        'Status Consenso': getStatusLabel(item.consensus_status),
+        'Nota Consenso (Performance)': formatScore(item.consensus_score ?? item.consensus_performance_score),
+        'Nota Consenso (Potencial)': formatScore(item.potential_score ?? item.consensus_potential_score),
+        'Posição Nine Box': item.ninebox_position || 'Pendente',
         'PDI': item.ninebox_position ? 'Definido' : 'Pendente',
-        'Posição Nine Box': item.ninebox_position || 'Pendente'
+        'Comentários da Reunião de Consenso / Comitê de Gente': consensusComments
       };
     });
-    
+
     const ws = XLSX.utils.json_to_sheet(data);
+
+    // Larguras de coluna para facilitar leitura no Excel
+    ws['!cols'] = [
+      { wch: 28 }, // Nome
+      { wch: 24 }, // Cargo
+      { wch: 22 }, // Departamento
+      { wch: 18 }, // Status Auto
+      { wch: 16 }, // Nota Auto
+      { wch: 20 }, // Status Líder
+      { wch: 18 }, // Nota Líder Perf
+      { wch: 18 }, // Nota Líder Pot
+      { wch: 18 }, // Status Consenso
+      { wch: 20 }, // Nota Consenso Perf
+      { wch: 20 }, // Nota Consenso Pot
+      { wch: 14 }, // Nine Box
+      { wch: 10 }, // PDI
+      { wch: 70 }, // Comentários
+    ];
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Avaliações');
-    
+
     XLSX.writeFile(wb, 'relatorio_avaliacoes.xlsx');
     toast.success('Relatório Excel gerado com sucesso!');
   };
