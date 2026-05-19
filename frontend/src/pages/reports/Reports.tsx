@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import Button from '../../components/Button';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx-js-style';
 import { toast } from 'react-hot-toast';
 import { useEvaluation } from '../../hooks/useEvaluation';
@@ -27,12 +27,6 @@ import { departmentsService, usersService } from '../../services/supabase.servic
 import { supabase } from '../../lib/supabase';
 import type { Department, UserWithDetails } from '../../types/supabase';
 import type { CycleDashboard, EvaluationCycle } from '../../types/evaluation.types';
-
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-  }
-}
 
 const Reports = () => {
   const { 
@@ -349,13 +343,14 @@ const Reports = () => {
       ];
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       head: [['Nome', 'Cargo', 'Departamento', 'Nota Auto', 'Nota Líder', 'Nota Consenso', 'Potencial', 'Nine Box']],
       body: tableData,
       startY: 40,
       theme: 'grid',
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [22, 101, 52] }
+      styles: { fontSize: 8, cellPadding: 3 },
+      headStyles: { fillColor: [0, 59, 43], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [230, 244, 240] },
     });
 
     doc.save('relatorio_avaliacoes.pdf');
@@ -382,7 +377,6 @@ const Reports = () => {
       'Nota Consenso (Potencial)',
       'Posição Nine Box',
       'PDI',
-      'Comentários da Reunião de Consenso',
       'Deliberações do Comitê de Gente',
     ];
 
@@ -392,8 +386,6 @@ const Reports = () => {
         (user?.teams && user.teams[0] ?
           departments.find(d => d.id === user.teams![0].department_id)?.name || '-' : '-');
 
-      const notes = consensusNotesByEmployee[item.employee_id];
-      const consensusComments = formatConsensusComments(notes);
       const committeeComments = committeeDeliberationsByEmployee[item.employee_id] || '';
 
       return [
@@ -410,7 +402,6 @@ const Reports = () => {
         formatScore(item.potential_score ?? item.consensus_potential_score),
         item.ninebox_position || 'Pendente',
         item.ninebox_position ? 'Definido' : 'Pendente',
-        consensusComments,
         committeeComments,
       ];
     });
